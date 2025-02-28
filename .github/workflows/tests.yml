@@ -8,6 +8,10 @@ permissions:
 env:
   BUILD_TYPE: Release
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ${{matrix.os}}
@@ -20,7 +24,8 @@ jobs:
             c_compiler: gcc-14
             omp: ON
             target: all
-            
+            build_type: Release
+
           - os: ubuntu-latest
             cxx_compiler: clang++
             c_compiler: clang
@@ -51,12 +56,24 @@ jobs:
             c_compiler: gcc-13
             omp: ON
             target: all
+            build_type: Release
 
           - os: macos-latest
             cxx_compiler: clang++
             c_compiler: clang
             omp: OFF
             target: all
+            build_type: Release
+    env:
+      CC: ${{matrix.c_compiler}}
+      CXX: ${{matrix.cxx_compiler}}
+      CDASH_ARGS: >-
+          -DCTEST_SOURCE_DIRECTORY=${{github.workspace}}
+          -DCTEST_BINARY_DIRECTORY=${{github.workspace}}/build
+          -DCTEST_CMAKE_GENERATOR="Unix Makefiles"
+          -DCTEST_SITE="Github"
+          -DCTEST_BUILD_NAME="${{matrix.os}}-${{matrix.cxx_compiler}}"
+          -DCTEST_BUILD_FLAGS="-j"
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -89,13 +106,20 @@ jobs:
 
       - name: Run CMake
         id: cmake
-        run: cmake -B ${{github.workspace}}/build ${{matrix.generator}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_COMPILER=${{matrix.cxx_compiler}} -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DBUILD_TESTING_FULL=ON -DZFP_WITH_OPENMP=${{matrix.omp}} -DBUILD_ZFPY=ON -DPYTHON_INCLUDE_DIR=$(python -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())")  -DPYTHON_LIBRARY=$(python -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-        
+        run: >-
+          ctest -VV -S .github/ctest_configure.cmake ${{ env.CDASH_ARGS }}
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+          -DCMAKE_C_COMPILER=${{matrix.c_compiler}}
+          -DCMAKE_CXX_COMPILER=${{matrix.cxx_compiler}}
+          -DBUILD_TESTING_FULL=ON
+          -DZFP_WITH_OPENMP=${{matrix.omp}}
+          -DBUILD_ZFPY=ON
+          -DPYTHON_INCLUDE_DIR=$(python -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())")
+          -DPYTHON_LIBRARY=$(python -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
       - name: Build
         id: build
-        run: cmake --build ${{github.workspace}}/build --target ${{matrix.target}} --config ${{env.BUILD_TYPE}}
+        run: ctest -VV -S .github/ctest_build.cmake ${{ env.CDASH_ARGS }}
 
       - name: Run Tests
         id: test
-        working-directory: ${{github.workspace}}/build
-        run: ctest -C ${{env.BUILD_TYPE}} -VV
+        run: ctest -VV -S .github/ctest_test.cmake ${{ env.CDASH_ARGS }}
