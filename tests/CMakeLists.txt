@@ -22,7 +22,6 @@ if(BUILD_TESTING_FULL)
   
   # CMAKE_SH-NOTFOUND needed for mingw builds
   if(MINGW)
-    list(APPEND CMOCKA_ARGS "-DCMAKE_SH=CMAKE_SH-NOTFOUND")
     list(APPEND GTEST_ARGS "-DCMAKE_SH=CMAKE_SH-NOTFOUND")
   endif()
   
