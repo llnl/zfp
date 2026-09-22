@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.10)
 
 project(googletest-download NONE)
 
@@ -9,8 +9,8 @@ ExternalProject_Add(
   GIT_TAG           main
   SOURCE_DIR        "${ZFP_BINARY_DIR}/tests/googletest-src"
   BINARY_DIR        "${ZFP_BINARY_DIR}/tests/googletest-build"
-  CONFIGURE_COMMAND   ""
-  BUILD_COMMAND   ""
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND     ""
   INSTALL_COMMAND   ""
-  TEST_COMMAND   ""
+  TEST_COMMAND      ""
 )
