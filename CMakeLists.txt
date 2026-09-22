@@ -73,11 +73,6 @@ endif()
 if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
 endif()
-
-if(MSVC OR MINGW)
-  set(CMAKE_C_STANDARD 90)
-endif()
-
 message(STATUS "Compiling with C standard: ${CMAKE_C_STANDARD}")
 
 # Suggest C++98
@@ -306,6 +301,9 @@ endif()
 option(BUILD_ZFPY "Build python bindings for zfp" OFF)
 if(BUILD_ZFPY)
   add_subdirectory(python)
+  if(CMAKE_C_STANDARD LESS 99)
+    message(WARNING "Cython for building zfpy requires C99 or later")
+  endif()
 endif()
 
 option(BUILD_UTILITIES "Build command line utilities for zfp" ON)
