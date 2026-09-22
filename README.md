@@ -1,9 +1,8 @@
 ZFP
 ===
 [![GitHub Actions Test Status](https://github.com/LLNL/zfp/actions/workflows/tests.yml/badge.svg)](https://github.com/LLNL/zfp/actions/workflows/tests.yml)
-[![Appveyor Build Status](https://ci.appveyor.com/api/projects/status/qb3ld7j11segy52k/branch/develop?svg=true)](https://ci.appveyor.com/project/lindstro/zfp)
 [![Documentation Status](https://readthedocs.org/projects/zfp/badge/?version=release1.0.1)](https://zfp.readthedocs.io/en/release1.0.1/)
-[![codecov](https://codecov.io/gh/LLNL/zfp/branch/develop/graph/badge.svg?token=jqvMVvgRQ9)](https://codecov.io/gh/LLNL/zfp)
+[![Code Coverage](https://codecov.io/gh/LLNL/zfp/branch/develop/graph/badge.svg?token=jqvMVvgRQ9)](https://codecov.io/gh/LLNL/zfp)
 [![R&D100 - Winner](https://img.shields.io/badge/R%26D100-Winner-gold)](https://www.rdworldonline.com/rd-100-winners-for-2023-are-announced-2/)
 
 zfp is a compressed format for representing multidimensional floating-point
