@@ -1,5 +1,0 @@
-version: 1.0.1-{build}
-
-environment:
-install:
-build_script:
