@@ -191,6 +191,7 @@ jobs:
           python -m pip install cython
           python -m pip install oldest-supported-numpy
           python -m pip install setuptools
+          python -m pip install packaging
 
       - if: github.event_name == 'pull_request'
         run: echo "CDASH_ARGS=${CDASH_ARGS} -DCTEST_UPDATE_VERSION_OVERRIDE=${{ github.event.pull_request.head.sha }}" >> "${GITHUB_ENV}"
