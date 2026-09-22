@@ -88,11 +88,6 @@ if(BUILD_TESTING_FULL)
     add_subdirectory(fortran)
   endif()
   
-  # needed to compile gtest on MSVC
-  if(MSVC)
-    list(APPEND GTEST_ARGS "/D:_SILENCE_TR1_DEPRECATION_NAMESPACE_WARNING=1")
-  endif()
-  
   # TODO: spend time getting googletest to compile on MinGW
   # checksums are generated through C tests, no need to compile C++ tests
   if((NOT MINGW) AND (NOT DEFINED ZFP_OMP_TESTS_ONLY) AND (NOT PRINT_CHECKSUMS))
