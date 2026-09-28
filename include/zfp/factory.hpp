@@ -105,7 +105,7 @@ zfp::array* zfp::array::construct(const zfp::array::header& header, const void* 
   if (!error.empty())
     throw zfp::exception(error);
 
-  if (buffer) {
+  if (arr && buffer) {
     if (buffer_size_bytes && buffer_size_bytes < arr->compressed_size()) {
       delete arr;
       throw zfp::exception("zfp buffer size is smaller than required");
