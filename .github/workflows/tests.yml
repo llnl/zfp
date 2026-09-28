@@ -154,7 +154,7 @@ jobs:
           -DCTEST_SITE="Github"
           -DCTEST_SOURCE_DIRECTORY="${{github.workspace}}"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
