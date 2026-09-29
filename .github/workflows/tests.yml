@@ -123,6 +123,34 @@ jobs:
       - name: Run Tests
         run: ctest -VV -S .github/ctest_test.cmake ${{ env.CDASH_ARGS }}
 
+  # The CUDA backend and its end-to-end tests. The runners have no GPU, so
+  # PantheonSim simulates one on the CPU and runs the kernels there; it checks
+  # results, not performance.
+  cuda:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up CUDA and a simulated GPU
+        uses: pantheongpu/setup-pantheonsim@v0
+        with:
+          gpu: nvidia/t4
+          cuda-toolkit: '12.8'
+
+      # FindCUDA links the static CUDA runtime by default; the shared one is
+      # what the simulator stands in for.
+      - name: Run CMake
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          -DZFP_WITH_CUDA=ON -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF
+          -DBUILD_TESTING_FULL=ON
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Run Tests
+        run: ctest --test-dir build --output-on-failure -R testZfpCuda
+
   windows:
     runs-on: ${{matrix.os}}
     strategy:
