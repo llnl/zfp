@@ -10,6 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: Kitware/cdash-status@v2.0.0
+      - uses: Kitware/cdash-status@v2.1.1
         with:
           project: zfp
