@@ -102,9 +102,16 @@ _t1(encode_few_ints, UInt)(bitstream* restrict_ stream, uint maxbits, uint maxpr
   /* encode one bit plane at a time from MSB to LSB */
   for (k = intprec, n = 0; bits && k-- > kmin;) {
     /* step 1: extract bit plane #k to x */
-    x = 0;
-    for (i = 0; i < size; i++)
-      x += (uint64)((data[i] >> k) & 1u) << i;
+    uint64 x0 = 0, x1 = 0, x2 = 0, x3 = 0;
+    for (i = 0; i + 3 < size; i += 4) {
+      x0 |= (uint64)((data[i    ] >> k) & 1u) << (i    );
+      x1 |= (uint64)((data[i + 1] >> k) & 1u) << (i + 1);
+      x2 |= (uint64)((data[i + 2] >> k) & 1u) << (i + 2);
+      x3 |= (uint64)((data[i + 3] >> k) & 1u) << (i + 3);
+    }
+    x = x0 | x1 | x2 | x3;
+    for (; i < size; i++)
+      x |= (uint64)((data[i] >> k) & 1u) << i;
     /* step 2: encode first n bits of bit plane */
     m = MIN(n, bits);
     bits -= m;
