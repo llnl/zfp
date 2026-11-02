@@ -154,11 +154,11 @@ jobs:
           -DCTEST_SITE="Github"
           -DCTEST_SOURCE_DIRECTORY="${{github.workspace}}"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
-      - uses: TheMrMilchmann/setup-msvc-dev@v4
+      - uses: TheMrMilchmann/setup-msvc-dev@368ef7d1ee4d1171b31d4a7f67f4d954f903f5a9 # v4.1.0
         if: startsWith(matrix.generator, 'Visual Studio')
         with:
           arch: ${{matrix.platform}}
@@ -166,12 +166,12 @@ jobs:
       - name: Install compiler
         if: startsWith(matrix.generator, 'MinGW')
         id: install_cc
-        uses: rlalik/setup-cpp-compiler@master
+        uses: rlalik/setup-cpp-compiler@3dbf473b4e7d87af3e7f329ca64bca40b2bae127 # v2
         with:
           compiler: latest
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.x'
           architecture: ${{matrix.platform}}
