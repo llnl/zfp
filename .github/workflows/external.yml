@@ -3,7 +3,8 @@ on:
   push:
   pull_request_target:
 
-#permissions: write-all
+permissions:
+  contents: read
 
 jobs:
   generate_statuses:
