@@ -12,6 +12,10 @@ Change Log
   for given scalar type, dimensionality, and compression mode.
 - `zfpy.__version__` for straightfoward access to the zfp version string in Python.
 
+### Changed
+
+- zfpy now requires NumPy 1.13.3 or later to address certain vulnerabilities.
+
 ### Fixed
 
 - #241: Signed left shifts, integer overflow invoke undefined behavior.

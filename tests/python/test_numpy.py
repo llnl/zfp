@@ -41,20 +41,14 @@ class TestNumpy(unittest.TestCase):
             elements = elements.astype(dtype, casting="same_kind")
             if (version_parse is None):
                 array = np.reshape(elements, shape)
-            elif (version_parse(np.__version__) >= version_parse("2.1.0")):
-                array = np.reshape(elements, shape=shape)
-            else:
+            elif (version_parse(np.__version__) < version_parse("2.1.0")):
                 array = np.reshape(elements, newshape=shape)
+            else:
+                array = np.reshape(elements, shape=shape)
             self.lossless_round_trip(array)
 
-        if (version_parse is not None and
-            (version_parse(np.__version__) >= version_parse("1.11.0"))
-        ):
-            for dtype in [np.int32, np.int64]:
-                array = np.random.randint(2**30, size=shape, dtype=dtype)
-                self.lossless_round_trip(array)
-        else:
-            array = np.random.randint(2**30, size=shape)
+        for dtype in [np.int32, np.int64]:
+            array = np.random.randint(np.iinfo(dtype).max, size=shape, dtype=dtype)
             self.lossless_round_trip(array)
 
     def test_advanced_decompression_checksum(self):

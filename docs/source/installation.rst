@@ -472,12 +472,14 @@ versions:
 
 * Python: Python 2.7 & Python 3.5
 * Cython: 0.22
-* NumPy: 1.8.0
+* NumPy: 1.13.3
 
 The necessary dependencies can be installed using ``pip`` and the |zfp|
 :file:`requirements.txt`::
 
   pip install -r $ZFP_ROOT/python/requirements.txt
+
+where ``$ZFP_ROOT`` is the path to the |zfp| top-level directory.
 
 Fortran
 ^^^^^^^
