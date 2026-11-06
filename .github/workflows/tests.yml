@@ -46,17 +46,23 @@ jobs:
             target: all
             architecture: arm64
             
-# macos-latest = macos-15 is currently incompatible with Homebrew gcc;
-# see https://github.com/actions/runner-images/issues/12745.
-# For now, use macos-14.
-
-#         - os: macos-latest
-          - os: macos-14
-            cxx_compiler: g++-13
-            c_compiler: gcc-13
+         - os: macos-latest
+            cxx_compiler: g++-15
+            c_compiler: gcc-15
             omp: ON
             target: all
             build_type: Release
+
+# macos-15 is currently incompatible with Homebrew gcc;
+# see https://github.com/actions/runner-images/issues/12745.
+# For now, use macos-14.
+
+#          - os: macos-14
+#            cxx_compiler: g++-13
+#            c_compiler: gcc-13
+#            omp: ON
+#            target: all
+#            build_type: Release
 
           - os: macos-latest
             cxx_compiler: clang++
