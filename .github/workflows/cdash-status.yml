@@ -1,0 +1,17 @@
+name: cdash-status
+on:
+  push:
+  pull_request_target:
+
+permissions:
+  contents: read
+
+jobs:
+  create_cdash_status:
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - uses: Kitware/cdash-status@ce4d2626d91a2688403b80f123061074314e9b82 # release
+        with:
+          project: zfp
