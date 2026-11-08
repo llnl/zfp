@@ -12,6 +12,6 @@ jobs:
     permissions:
       statuses: write
     steps:
-      - uses: Kitware/cdash-status@ce4d2626d91a2688403b80f123061074314e9b82 # release
+      - uses: Kitware/cdash-status@ce4d2626d91a2688403b80f123061074314e9b82 # v3.0.0
         with:
           project: zfp
