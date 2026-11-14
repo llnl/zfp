@@ -155,6 +155,17 @@ cpdef bytes compress_numpy(
     if num_params_set > 1:
         raise ValueError("Only one of tolerance, rate, or precision can be set")
 
+    # zfp strides are in units of elements, and a zero stride means
+    # "contiguous", so copy arrays whose layout zfp cannot describe, such as
+    # broadcast views (zero strides) or fields of structured arrays
+    cdef int i
+    for i in range(arr.ndim):
+        if arr.shape[i] > 1 and (
+            arr.strides[i] == 0 or arr.strides[i] % arr.itemsize != 0
+        ):
+            arr = np.ascontiguousarray(arr)
+            break
+
     # Setup zfp structs to begin compression
     cdef zfp_field* field = _init_field(arr)
     cdef zfp_stream* stream = zfp_stream_open(NULL)
