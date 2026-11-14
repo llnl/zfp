@@ -150,6 +150,27 @@ class TestNumpy(unittest.TestCase):
             )
             self.assertIsNone(np.testing.assert_array_equal(decompressed_array, random_array))
 
+    def test_zero_strides(self):
+        # broadcast views have zero strides, which zfp reads as "contiguous"
+        x = np.random.rand(16)
+        y = np.random.rand(8)
+        for array in [
+                np.broadcast_to(x, (8, 16)),
+                np.broadcast_to(y[:, np.newaxis], (8, 16)),
+                np.broadcast_to(y[:, np.newaxis, np.newaxis], (8, 4, 16)),
+        ]:
+            self.lossless_round_trip(array)
+            compressed_array = zfpy.compress_numpy(array, tolerance=1e-6)
+            decompressed_array = zfpy.decompress_numpy(compressed_array)
+            self.assertLessEqual(np.max(np.abs(decompressed_array - array)), 1e-6)
+
+    def test_strides_not_multiple_of_itemsize(self):
+        records = np.zeros(100, dtype=[("x", np.float64), ("y", np.float32)])
+        records["x"] = np.random.rand(100)
+        records["y"] = np.random.rand(100)
+        self.lossless_round_trip(records["x"])
+        self.lossless_round_trip(records["y"])
+
     def test_utils(self):
         for ndims in range(1, 5):
             for ztype, ztype_str in [
