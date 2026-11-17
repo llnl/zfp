@@ -20,6 +20,8 @@ Change Log
 
 - #241: Signed left shifts, integer overflow invoke undefined behavior.
 - #270: Overflow of maximum stream size when `size_t` is 32 bits.
+- #317: `zfpy.compress_numpy` read out of bounds for broadcast or unaligned arrays;
+  it now raises `ValueError` for them.
 
 ---
 
