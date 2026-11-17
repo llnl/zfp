@@ -159,17 +159,27 @@ class TestNumpy(unittest.TestCase):
                 np.broadcast_to(y[:, np.newaxis], (8, 16)),
                 np.broadcast_to(y[:, np.newaxis, np.newaxis], (8, 4, 16)),
         ]:
-            self.lossless_round_trip(array)
-            compressed_array = zfpy.compress_numpy(array, tolerance=1e-6)
-            decompressed_array = zfpy.decompress_numpy(compressed_array)
-            self.assertLessEqual(np.max(np.abs(decompressed_array - array)), 1e-6)
+            with self.assertRaises(ValueError):
+                zfpy.compress_numpy(array)
+            with self.assertRaises(ValueError):
+                zfpy.compress_numpy(array, tolerance=1e-6)
+            self.lossless_round_trip(np.ascontiguousarray(array))
 
-    def test_strides_not_multiple_of_itemsize(self):
+    def test_unaligned_strides(self):
         records = np.zeros(100, dtype=[("x", np.float64), ("y", np.float32)])
         records["x"] = np.random.rand(100)
         records["y"] = np.random.rand(100)
-        self.lossless_round_trip(records["x"])
+        # stride of 12 bytes is not a multiple of the 8-byte item size
+        with self.assertRaises(ValueError):
+            zfpy.compress_numpy(records["x"])
+        # stride of 12 bytes is 3 float32 elements, which zfp supports
         self.lossless_round_trip(records["y"])
+        # data pointer not aligned to the item size
+        buffer = np.zeros(8 * 64 + 1, dtype=np.uint8)
+        unaligned = np.frombuffer(buffer.data, dtype=np.float64, count=64, offset=1)
+        self.assertFalse(unaligned.flags.aligned)
+        with self.assertRaises(ValueError):
+            zfpy.compress_numpy(unaligned)
 
     def test_utils(self):
         for ndims in range(1, 5):
