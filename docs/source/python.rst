@@ -80,8 +80,13 @@ shape of the original array.  Note, however, that the |zfp| stream does
 not encode the memory layout of the original NumPy array, and therefore
 layout information like strides, contiguity, and C vs. Fortran order
 may not be preserved.  Nevertheless, |zfpy| correctly compresses NumPy
-arrays with any memory layout, including Fortran ordering and non-contiguous
-storage.
+arrays with most memory layouts, including Fortran ordering and non-contiguous
+storage.  Arrays with zero strides, such as views created by
+:code:`numpy.broadcast_to`, and arrays that are not aligned or whose strides
+are not a multiple of the scalar size, such as fields of packed structured
+arrays, are not supported, and :py:func:`compress_numpy` raises
+:code:`ValueError` for them.  Such arrays can be compressed by first making
+a contiguous copy with :code:`numpy.ascontiguousarray`.
 
 Byte streams produced by :py:func:`compress_numpy` can be decompressed
 by the :ref:`zfp command-line tool <zfpcmd>`.  In general, they cannot
