@@ -11,6 +11,13 @@ permissions:
 jobs:
   coverage:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+            gcov_exec: gcov
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
@@ -28,7 +35,7 @@ jobs:
           python -m pip install lcov_cobertura
 
       - name: Run CMake
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++-13 -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_FLAGS="-fprofile-arcs -ftest-coverage" -DCMAKE_C_FLAGS="-fprofile-arcs -ftest-coverage" -DBUILD_TESTING_FULL=ON -DBUILD_CFP=ON -DZFP_WITH_OPENMP=ON
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fprofile-arcs -ftest-coverage" -DCMAKE_C_FLAGS="-fprofile-arcs -ftest-coverage" -DBUILD_TESTING_FULL=ON -DBUILD_CFP=ON -DZFP_WITH_OPENMP=ON
 
       - name: Build
         run: cmake --build ${{github.workspace}}/build
