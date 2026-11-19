@@ -14,6 +14,14 @@ if(BUILD_TESTING OR BUILD_TESTING_FULL)
   endif()
   target_compile_definitions(testviews PRIVATE ${zfp_compressed_array_defs})
   add_test(NAME testviews COMMAND testviews)
+
+  # zfp.pc: check that pkg-config can parse it and reports the zfp version
+  find_package(PkgConfig QUIET)
+  if(PKG_CONFIG_FOUND AND NOT WIN32)
+    add_test(NAME pkg-config
+      COMMAND ${PKG_CONFIG_EXECUTABLE} --print-errors
+              --exact-version=${ZFP_VERSION} ${ZFP_BINARY_DIR}/zfp.pc)
+  endif()
 endif()
 
 if(BUILD_TESTING_FULL)

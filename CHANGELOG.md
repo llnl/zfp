@@ -11,6 +11,7 @@ Change Log
 - A new utility function `zfp_block_maximum_size()` returns maximum block size
   for given scalar type, dimensionality, and compression mode.
 - `zfpy.__version__` for straightfoward access to the zfp version string in Python.
+- CMake installs now include a pkg-config file, `zfp.pc`.
 
 ### Changed
 

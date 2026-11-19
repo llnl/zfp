@@ -98,6 +98,14 @@ This builds |zfp| in release mode.  Replace 'Release' with 'Debug' to
 build |zfp| in debug mode.  See the instructions for Linux on how to
 change the cmake line to also build the example programs.
 
+Installing a CMake build, e.g., using ``make install``, places the |zfp|
+headers, libraries, CMake configuration files, and a ``pkg-config`` file,
+:file:`zfp.pc`, under the install prefix.  Build systems that do not use
+CMake may then obtain the compiler and linker flags needed to use |libzfp|
+via::
+
+    pkg-config --cflags --libs zfp
+
 
 .. _gnu_builds:
 

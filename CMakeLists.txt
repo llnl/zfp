@@ -378,3 +378,49 @@ if(BUILD_CFP)
   install(EXPORT cfp-targets NAMESPACE zfp::
     DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
 endif()
+
+# Generate and install zfp.pc for pkg-config.  GNUInstallDirs allows the
+# include and library directories to be absolute or relative to the prefix.
+if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
+  set(ZFP_PC_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
+else()
+  set(ZFP_PC_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+endif()
+if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+  set(ZFP_PC_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+else()
+  set(ZFP_PC_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
+endif()
+
+# Macros that code including the zfp headers must be compiled with
+set(ZFP_PC_CFLAGS "")
+get_target_property(zfp_pc_defs zfp INTERFACE_COMPILE_DEFINITIONS)
+if(zfp_pc_defs)
+  foreach(def IN LISTS zfp_pc_defs)
+    string(REPLACE " " "\\ " def "${def}")
+    string(APPEND ZFP_PC_CFLAGS " -D${def}")
+  endforeach()
+endif()
+
+# Libraries needed in addition to libzfp when linking statically
+set(ZFP_PC_LIBS_PRIVATE "")
+if(ZFP_WITH_OPENMP)
+  if(OpenMP_C_LIB_NAMES)
+    foreach(lib IN LISTS OpenMP_C_LIB_NAMES)
+      string(APPEND ZFP_PC_LIBS_PRIVATE " -l${lib}")
+    endforeach()
+  else()
+    # Some compilers link the OpenMP runtime via the OpenMP compile flags
+    string(APPEND ZFP_PC_LIBS_PRIVATE " ${OpenMP_C_FLAGS}")
+  endif()
+endif()
+if(HAVE_LIBM_MATH)
+  string(APPEND ZFP_PC_LIBS_PRIVATE " -lm")
+endif()
+if(ZFP_WITH_CUDA)
+  string(APPEND ZFP_PC_LIBS_PRIVATE " ${CUDA_CUDART_LIBRARY} -lstdc++")
+endif()
+
+configure_file(zfp.pc.in "${PROJECT_BINARY_DIR}/zfp.pc" @ONLY)
+install(FILES "${PROJECT_BINARY_DIR}/zfp.pc"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
