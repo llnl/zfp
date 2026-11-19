@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=@ZFP_PC_INCLUDEDIR@
+libdir=@ZFP_PC_LIBDIR@
+
+Name: zfp
+Description: Library for compressed numerical arrays that support high throughput read and write random access
+URL: https://github.com/LLNL/zfp
+Version: @ZFP_VERSION@
+Cflags: -I${includedir}@ZFP_PC_CFLAGS@
+Libs: -L${libdir} -l@ZFP_LIBRARY_PREFIX@zfp
+Libs.private:@ZFP_PC_LIBS_PRIVATE@
