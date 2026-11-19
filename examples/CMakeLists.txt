@@ -2,6 +2,9 @@ add_executable(array array.cpp)
 target_compile_definitions(array PRIVATE ${zfp_compressed_array_defs})
 target_link_libraries(array zfp)
 
+add_executable(chunk chunk.c)
+target_link_libraries(chunk zfp)
+
 add_executable(diffusion diffusion.cpp)
 target_compile_definitions(diffusion PRIVATE ${zfp_compressed_array_defs})
 if(ZFP_WITH_OPENMP)

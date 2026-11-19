@@ -502,13 +502,13 @@ with only a few differences:
 - All methods other than those that specify array-wide settings, such as
   compression mode and parameters, array dimensions, and array contents,
   are :code:`const` qualified.  There are, thus, no methods for obtaining
-  a writeable reference, pointer, or iterator.  Consequently, one may not
+  a writable reference, pointer, or iterator.  Consequently, one may not
   initialize such arrays one element at a time.  Rather, the user initializes
   the whole array by passing a pointer to uncompressed data.
 
 - Whereas the constructors for fixed-rate arrays accept a *rate* parameter,
   the read-only arrays allow specifying any compression mode and
-  corresponding parameters (if any) via a :c:struct:`zfp_config` object.
+  corresponding parameters (if any) via a :c:type:`zfp_config` object.
 
 - Additional methods are available for setting and querying compression
   mode and parameters after construction.

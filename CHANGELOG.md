@@ -5,11 +5,44 @@ Change Log
 
 ## Unreleased
 
+### Added
+
+- A new code example, `chunk`, shows how to perform (de)compression in chunks.
+- A new utility function `zfp_block_maximum_size()` returns maximum block size
+  for given scalar type, dimensionality, and compression mode.
+- `zfpy.__version__` for straightfoward access to the zfp version string in Python.
+
+### Changed
+
+- zfpy now requires NumPy 1.13.3 or later to address certain vulnerabilities.
+
 ### Fixed
 
-- # 177: Full test suite not in release
-- #176: `CFP` API is not exposed via CMake configuration file
+- #241: Signed left shifts, integer overflow invoke undefined behavior.
+- #270: Overflow of maximum stream size when `size_t` is 32 bits.
+
+---
+
+## 1.0.1 (2023-12-15)
+
+This patch release primarily addresses minor bug fixes and is needed to update
+the zfpy Python wheels.
+
+### Added
+
+- A new build macro, `BUILD_TESTING_FULL`, specifies that all unit tests be
+  built; `BUILD_TESTING` produces a smaller subset of tests.  Full tests and
+  documentation are now included in releases.
+
+### Fixed
+
 - #169: `libm` dependency is not always correctly detected.
+- #171: `ptrdiff_t` is not always imported in Cython.
+- #176: cfp API is not exposed via CMake configuration file.
+- #177: Full test suite is not included in release.
+- #181: `rpath` is not set correctly in executables.
+- #204: Array strides are not passed by value in zFORp.
+- #220: Errors reported with scikit-build when building zfpy.
 
 ---
 
@@ -90,7 +123,7 @@ moved relative to prior versions.
 - #86: C++ compiler warns when `__STDC_VERSION__` is undefined.
 - #87: `CXXFLAGS` is misspelled in `cfp/src/Makefile`.
 - #98: `zfp_stream_maximum_size()` underestimates size in reversible mode.
-- #99: Incorrect `private_view` reads due to missing writeback.
+- #99: Incorrect `private_view` reads due to missing write-back.
 - #109: Unused CPython array is incompatible with PyPy.
 - #112: PGI compiler bug causes issues with memory alignment.
 - #119: All-subnormal blocks may cause floating-point overflow.

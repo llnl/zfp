@@ -10,6 +10,11 @@ try:
 except ImportError:
     version_parse = None
 
+def test_zfpy_version():
+    # Just ensure that the version contains 3 numbers separated by dots
+    assert len(zfpy.__version__.split('.')) == 3
+    # Ensure it is a string, not bytes
+    assert isinstance(zfpy.__version__, str)
 
 class TestNumpy(unittest.TestCase):
     def lossless_round_trip(self, orig_array):
@@ -34,17 +39,16 @@ class TestNumpy(unittest.TestCase):
         for dtype in [np.float32, np.float64]:
             elements = np.random.random_sample(num_elements)
             elements = elements.astype(dtype, casting="same_kind")
-            array = np.reshape(elements, newshape=shape)
+            if (version_parse is None):
+                array = np.reshape(elements, shape)
+            elif (version_parse(np.__version__) < version_parse("2.1.0")):
+                array = np.reshape(elements, newshape=shape)
+            else:
+                array = np.reshape(elements, shape=shape)
             self.lossless_round_trip(array)
 
-        if (version_parse is not None and
-            (version_parse(np.__version__) >= version_parse("1.11.0"))
-        ):
-            for dtype in [np.int32, np.int64]:
-                array = np.random.randint(2**30, size=shape, dtype=dtype)
-                self.lossless_round_trip(array)
-        else:
-            array = np.random.randint(2**30, size=shape)
+        for dtype in [np.int32, np.int64]:
+            array = np.random.randint(np.iinfo(dtype).max, size=shape, dtype=dtype)
             self.lossless_round_trip(array)
 
     def test_advanced_decompression_checksum(self):

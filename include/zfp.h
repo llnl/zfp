@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2014-2022, Lawrence Livermore National Security, LLC and
+** Copyright (c) 2014-2023, Lawrence Livermore National Security, LLC and
 ** other zfp project contributors. See the top-level LICENSE file for details.
 ** SPDX-License-Identifier: BSD-3-Clause
 */
@@ -335,7 +335,7 @@ zfp_stream_set_omp_chunk_size(
 
 /* unspecified configuration */
 zfp_config /* compression mode and parameter settings */
-zfp_config_none();
+zfp_config_none(void);
 
 /* fixed-rate configuration */
 zfp_config       /* compression mode and parameter settings */
@@ -358,7 +358,7 @@ zfp_config_accuracy(
 
 /* reversible (lossless) configuration */
 zfp_config /* compression mode and parameter settings */
-zfp_config_reversible();
+zfp_config_reversible(void);
 
 /* expert configuration */
 zfp_config      /* compression mode and parameter settings */
@@ -373,7 +373,7 @@ zfp_config_expert(
 
 /* allocate field struct */
 zfp_field* /* pointer to default initialized field */
-zfp_field_alloc();
+zfp_field_alloc(void);
 
 /* allocate metadata for 1D field f[nx] */
 zfp_field*       /* allocated field metadata */
@@ -631,11 +631,11 @@ zfp_stream_align(
 /*
 The functions below all compress either a complete contiguous d-dimensional
 block of 4^d scalars or a complete or partial block assembled from a strided
-array.  In the latter case, p points to the first scalar; (nx, ny, nz) specify
-the size of the block, with 1 <= nx, ny, nz <= 4; and (sx, sy, sz) specify the
-strides, i.e. the number of scalars to advance to get to the next scalar along
-each dimension.  The functions return the number of bits of compressed storage
-needed for the compressed block.
+array.  In the latter case, p points to the first scalar; (nx, ny, nz, nw)
+specify the size of the block, with 1 <= nx, ny, nz, nw <= 4; and
+(sx, sy, sz, sw) specify the strides, i.e., the number of scalars to advance
+to get to the next scalar along each dimension.  The functions return the
+number of bits of compressed storage needed for the compressed block.
 */
 
 /* encode 1D contiguous block of 4 values */
@@ -787,6 +787,9 @@ void zfp_demote_int32_to_int8(int8* oblock, const int32* iblock, uint dims);
 void zfp_demote_int32_to_uint8(uint8* oblock, const int32* iblock, uint dims);
 void zfp_demote_int32_to_int16(int16* oblock, const int32* iblock, uint dims);
 void zfp_demote_int32_to_uint16(uint16* oblock, const int32* iblock, uint dims);
+
+/* maximum number of bits/block of compressed storage */
+size_t zfp_block_maximum_size(zfp_type type, uint dims, zfp_bool reversible);
 
 #ifdef __cplusplus
 }

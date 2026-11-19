@@ -37,6 +37,38 @@ storage would not be enough to distinguish more than 16 different values.
 For more advanced compressed-array features, see the
 :ref:`tutorial <tut-arrays>`.
 
+.. _ex-chunk:
+
+Chunked (De)compression
+-----------------------
+
+The :program:`chunk` program is an example of how to perform chunked
+(de)compression, where the compressed stream for a 3D array is produced or
+consumed in multiple chunks.  Chunking slices the array along the *z*
+direction (the slowest varying dimension) into slabs that are (de)compressed
+independently.  Assuming the chosen array dimensions, rate, and number of
+chunks admit (de)compression by satisfying certain constraints (see FAQ
+:ref:`#32 <q-chunked>`), (de)compression in chunks should result in the same
+output as if the entire array were (de)compressed all at once.
+
+The array dimensions are specified as :code:`-3 nx ny nz` (default is
+125 |times| 100 |times| 240); the rate as :code:`-r rate` (default is
+16 bits/value); and the number of chunks as :code:`-n chunks` (default is one
+chunk).  Without :code:`-d`, a synthetic array is generated and compressed to
+standard output.  Using :code:`-d`, standard input is decompressed and written
+to standard output.  For example::
+
+    chunk -n 1 > single.zfp
+    chunk -n 4 > quadruple.zfp
+    diff single.zfp quadruple.zfp
+
+    chunk -n 1 -d < single.zfp > single.f64
+    chunk -n 4 -d < single.zfp > quadruple.f64
+    diff single.f64 quadruple.f64
+
+Here :program:`diff` should report no differences.  See FAQ
+:ref:`#32 <q-chunked>` for further discussion of chunked (de)compression.
+
 .. _ex-diffusion:
 
 Diffusion Solver

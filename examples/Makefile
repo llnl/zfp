@@ -2,6 +2,7 @@ include ../Config
 
 BINDIR = ../bin
 TARGETS = $(BINDIR)/array\
+	  $(BINDIR)/chunk\
 	  $(BINDIR)/diffusion\
 	  $(BINDIR)/inplace\
 	  $(BINDIR)/iterator\
@@ -24,6 +25,9 @@ all: $(TARGETS)
 
 $(BINDIR)/array: array.cpp ../lib/$(LIBZFP)
 	$(CXX) $(CXXFLAGS) $(INCS) array.cpp $(CXXLIBS) -o $@
+
+$(BINDIR)/chunk: chunk.c ../lib/$(LIBZFP)
+	$(CC) $(CFLAGS) $(INCS) chunk.c $(CLIBS) -o $@
 
 $(BINDIR)/diffusion: diffusion.cpp ../lib/$(LIBZFP)
 	$(CXX) $(CXXFLAGS) $(INCS) diffusion.cpp $(CXXLIBS) -o $@

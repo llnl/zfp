@@ -1,12 +1,14 @@
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <setjmp.h>
 #include <cmocka.h>
 
 #define BIT_STREAM_WORD_TYPE uint16
 
-#include "include/zfp/bitstream.h"
-#include "include/zfp/bitstream.inl"
+#include "zfp/internal/zfp/inline.h"
+#include "zfp/bitstream.h"
+#include "zfp/bitstream.inl"
 
 #define STREAM_WORD_CAPACITY 4
 

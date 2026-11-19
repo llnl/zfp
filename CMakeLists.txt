@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.10)
 
 # Enable MACOSX_RPATH by default
 cmake_policy(SET CMP0042 NEW)
@@ -73,11 +73,6 @@ endif()
 if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
 endif()
-
-if(MSVC OR MINGW)
-  set(CMAKE_C_STANDARD 90)
-endif()
-
 message(STATUS "Compiling with C standard: ${CMAKE_C_STANDARD}")
 
 # Suggest C++98
@@ -306,6 +301,9 @@ endif()
 option(BUILD_ZFPY "Build python bindings for zfp" OFF)
 if(BUILD_ZFPY)
   add_subdirectory(python)
+  if(CMAKE_C_STANDARD LESS 99)
+    message(WARNING "Cython for building zfpy requires C99 or later")
+  endif()
 endif()
 
 option(BUILD_UTILITIES "Build command line utilities for zfp" ON)
@@ -325,6 +323,12 @@ if(BUILD_TESTING OR BUILD_TESTING_FULL)
 
   add_subdirectory(tests)
 endif()
+
+configure_file(
+  ${PROJECT_SOURCE_DIR}/cmake/CTestCustom.cmake.in
+  ${PROJECT_BINARY_DIR}/CTestCustom.cmake
+  @ONLY
+)
 
 #------------------------------------------------------------------------------#
 # Header install

@@ -40,3 +40,5 @@
 .. |carrrelease| replace:: 1.0.0
 .. |cpprelease| replace:: 1.0.0
 .. |verrelease| replace:: 1.0.0
+.. |roundingrelease| replace:: 1.0.0
+.. |nextrelease| replace:: 1.1.0

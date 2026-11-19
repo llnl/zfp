@@ -13,6 +13,46 @@ should conform to both the ISO C89 and C99 standards.  The C++ array classes
 are implemented entirely in header files and can be included as is, but since
 they call the compression library, applications must link with |libzfp|.
 
+.. _package_managers:
+
+Using Package Managers
+----------------------
+
+Several package managers can readily install |zfp| or |zfpy| (the |zfp|
+:ref:`Python bindings <zfpy>`) on a variety of platforms.  The table below
+provides basic usage for some common package managers:
+
+  +------------------+-----------------+--------------------------------------+
+  | operating system | package manager | installation command                 |
+  +==================+=================+======================================+
+  | *multiple*       | Conda           | ``conda install -c conda-forge zfp`` |
+  +------------------+-----------------+--------------------------------------+
+  | *multiple*       | Pip             | ``pip install zfpy``                 |
+  +------------------+-----------------+--------------------------------------+
+  | *multiple*       | Spack           | ``spack install zfp``                |
+  +------------------+-----------------+--------------------------------------+
+  | Arch, MSYS2      | pacman          | ``sudo pacman -S zfp``               |
+  +------------------+-----------------+--------------------------------------+
+  | Fedora           | dnf             | ``sudo dnf install zfp``             |
+  +------------------+-----------------+--------------------------------------+
+  | Red Hat          | yum             | ``sudo yum install zfp``             |
+  +------------------+-----------------+--------------------------------------+
+  | Ubuntu           | apt             | ``sudo apt install zfp``             |
+  +------------------+-----------------+--------------------------------------+
+  | macOS            | Homebrew        | ``brew install zfp``                 |
+  +------------------+-----------------+--------------------------------------+
+  | macOS            | MacPorts        | ``port install zfp``                 |
+  +------------------+-----------------+--------------------------------------+
+  | Windows          | vcpkg           | ``vcpkg install zfp``                |
+  +------------------+-----------------+--------------------------------------+
+
+Additional |zfp| packages available for some platforms include ``zfpy`` and
+``python3-zfpy`` (for Python) and ``zfp-devel`` (development headers and CMake
+configuration).
+
+Installation from Source
+------------------------
+
 |zfp| is preferably built using `CMake <https://cmake.org>`__, although the
 core library can also be built using GNU make on Linux, macOS, and MinGW.
 
@@ -20,7 +60,7 @@ core library can also be built using GNU make on Linux, macOS, and MinGW.
 C++11, and C++14.
 
 .. note::
-  |zfp| requires 64-bit compiler and operating system support.
+  |zfp| requires compiler support for 64-bit integers.
 
 .. _cmake_builds:
 
@@ -30,7 +70,7 @@ CMake Builds
 To build |zfp| using `CMake <https://cmake.org>`__ on Linux or macOS, start
 a Unix shell and type::
 
-    cd zfp-1.0.0
+    cd zfp-1.0.1
     mkdir build
     cd build
     cmake ..
@@ -48,7 +88,7 @@ By default, CMake builds will attempt to locate and use
 To build |zfp| using Visual Studio on Windows, start a DOS shell
 and type::
 
-    cd zfp-1.0.0
+    cd zfp-1.0.1
     mkdir build
     cd build
     cmake ..
@@ -67,7 +107,7 @@ GNU Builds
 To build |zfp| using `gcc <https://gcc.gnu.org>`__ without
 `OpenMP <http://www.openmp.org>`__, type::
 
-    cd zfp-1.0.0
+    cd zfp-1.0.1
     gmake
 
 This builds |libzfp| as a static library as well as the |zfp|
@@ -193,13 +233,15 @@ Regardless of the settings below, |libzfp| will always be built.
   CMake default: on.
   GNU make default: off.
 
+.. note::
+  On macOS, add :code:`OS=mac` when building shared libraries with GNU make.
 
 .. index::
    single: Configuration
-.. _config:
+.. _settings:
 
 
-Configuration
+Build Options
 -------------
 
 The behavior of |zfp| can be configured at compile time via a set of macros
@@ -208,6 +250,9 @@ in the same manner that :ref:`build targets <targets>` are specified, e.g.,
 
     cmake -DZFP_WITH_OPENMP=OFF ..
 
+Some of the settings that impact |zfp|'s behavior and what ultimately is
+stored in the compressed stream are further discussed in greater detail in
+the :ref:`config` section.
 
 .. c:macro:: ZFP_INT64
 .. c:macro:: ZFP_INT64_SUFFIX
@@ -250,32 +295,32 @@ in the same manner that :ref:`build targets <targets>` are specified, e.g.,
   CMake default: off.
   GNU make default: off and ignored.
 
-.. _rounding:
+.. _rounding-parameter:
+
 .. c:macro:: ZFP_ROUNDING_MODE
 
   **Experimental feature**.  By default, |zfp| coefficients are truncated,
   not rounded, which can result in biased errors (see
   FAQ :ref:`#30 <q-err-dist>`).  To counter this, two rounding modes are
-  available: :code:`ZFP_ROUND_FIRST` (round during compression; analogous
-  to mid-tread quantization) and :code:`ZFP_ROUND_LAST` (round during
+  available: :c:macro:`ZFP_ROUND_FIRST` (round during compression; analogous
+  to mid-tread quantization) and :c:macro:`ZFP_ROUND_LAST` (round during
   decompression; analogous to mid-riser quantization).  With
-  :code:`ZFP_ROUND_LAST`, the values returned on decompression are slightly
+  :c:macro:`ZFP_ROUND_LAST`, the values returned on decompression are slightly
   modified (and usually closer to the original values) without impacting the
   compressed data itself.  This rounding mode works with all
   :ref:`compression modes <modes>`.
-  With :code:`ZFP_ROUND_FIRST`, the values are modified before compression,
+  With :c:macro:`ZFP_ROUND_FIRST`, the values are modified before compression,
   thus impacting the compressed stream.  This rounding mode tends to be more
   effective at reducing bias, but is invoked only with
   :ref:`fixed-precision <mode-fixed-precision>` and
   :ref:`fixed-accuracy <mode-fixed-accuracy>` compression modes.
   Both of these rounding modes break the regression tests since they alter
   the compressed or decompressed representation, but they may be used with
-  libraries built with the default rounding mode, :code:`ZFP_ROUND_NEVER`,
+  libraries built with the default rounding mode, :c:macro:`ZFP_ROUND_NEVER`,
   and versions of |zfp| that do not support a rounding mode with no adverse
-  effects.
-  Note: :c:macro:`ZFP_ROUNDING_MODE` is currently supported only by the
-  :code:`serial` and :code:`omp` :ref:`execution policies <execution>`.
-  Default: :code:`ZFP_ROUND_NEVER`.
+  effects.  For additional information, see the detailed :ref:`rounding`
+  section.
+  Default: :c:macro:`ZFP_ROUND_NEVER`.
 
 .. c:macro:: ZFP_WITH_TIGHT_ERROR
 
@@ -286,8 +331,8 @@ in the same manner that :ref:`build targets <targets>` are specified, e.g.,
   to be satisfied using fewer bits of compressed data.  As a result, when
   enabled, the observed maximum absolute error is closer to the tolerance and
   the compression ratio is increased.  This feature requires the rounding mode
-  to be :code:`ZFP_ROUND_FIRST` or :code:`ZFP_ROUND_LAST` and is supported
-  only by the :code:`serial` and :code:`omp`
+  to be :c:macro:`ZFP_ROUND_FIRST` or :c:macro:`ZFP_ROUND_LAST` and is
+  supported only by the :code:`serial` and :code:`omp`
   :ref:`execution policies <execution>`.
   Default: undefined/off.
 
@@ -337,6 +382,8 @@ in the same manner that :ref:`build targets <targets>` are specified, e.g.,
   rates.
   Default: undefined/off.
 
+
+.. _word-size-parameter:
 
 .. c:macro:: BIT_STREAM_WORD_TYPE
 
@@ -425,12 +472,14 @@ versions:
 
 * Python: Python 2.7 & Python 3.5
 * Cython: 0.22
-* NumPy: 1.8.0
+* NumPy: 1.13.3
 
 The necessary dependencies can be installed using ``pip`` and the |zfp|
 :file:`requirements.txt`::
 
   pip install -r $ZFP_ROOT/python/requirements.txt
+
+where ``$ZFP_ROOT`` is the path to the |zfp| top-level directory.
 
 Fortran
 ^^^^^^^

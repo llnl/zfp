@@ -1,0 +1,209 @@
+name: Tests
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unix:
+    runs-on: ${{matrix.os}}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cxx_compiler: g++-14
+            c_compiler: gcc-14
+            omp: ON
+            target: all
+            build_type: Release
+
+          - os: ubuntu-latest
+            cxx_compiler: clang++
+            c_compiler: clang
+            omp: ON
+            target: all
+
+          - os: ubuntu-24.04-arm
+            cxx_compiler: g++-14
+            c_compiler: gcc-14
+            omp: ON
+            target: all
+            architecture: arm64
+
+          - os: ubuntu-24.04-arm
+            cxx_compiler: clang++
+            c_compiler: clang
+            omp: ON
+            target: all
+            architecture: arm64
+
+          - os: macos-latest
+            cxx_compiler: g++-15
+            c_compiler: gcc-15
+            omp: ON
+            target: all
+            build_type: Release
+
+          - os: macos-latest
+            cxx_compiler: clang++
+            c_compiler: clang
+            omp: OFF
+            target: all
+            build_type: Release
+    env:
+      CC: ${{matrix.c_compiler}}
+      CXX: ${{matrix.cxx_compiler}}
+      CDASH_ARGS: >-
+          -DCTEST_SOURCE_DIRECTORY=${{github.workspace}}
+          -DCTEST_BINARY_DIRECTORY=${{github.workspace}}/build
+          -DCTEST_CMAKE_GENERATOR="Unix Makefiles"
+          -DCTEST_SITE="Github"
+          -DCTEST_BUILD_NAME="${{matrix.os}}-${{matrix.cxx_compiler}}"
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.x'
+          architecture: ${{ matrix.architecture || 'x64' }}
+
+      - name: Install zfpy dependencies
+        run: |
+          python -m pip install cython
+          python -m pip install oldest-supported-numpy
+          python -m pip install setuptools
+          python -m pip install packaging
+
+      - name: Setup OpenMP (Linux)
+        if: ${{matrix.omp == 'ON' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') && matrix.c_compiler == 'clang'}}
+        run: sudo apt-get update; sudo apt-get install -y libomp5 libomp-dev
+
+      - name: Setup OpenMP (MacOS)
+        if: ${{matrix.omp == 'ON' && matrix.os == 'macos-latest' && matrix.c_compiler == 'clang'}}
+        run: |
+          brew install libomp
+          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm)/bin/clang++" >> $GITHUB_ENV
+          echo "LDFLAGS=\"-L$(brew --prefix llvm)/lib\"" >> $GITHUB_ENV
+          echo "CPPFLAGS=\"-I$(brew --prefix llvm)/include\"" >> $GITHUB_ENV
+
+      - if: github.event_name == 'pull_request'
+        run: echo "CDASH_ARGS=${CDASH_ARGS} -DCTEST_UPDATE_VERSION_OVERRIDE=${{ github.event.pull_request.head.sha }}" >> "${GITHUB_ENV}"
+
+      - name: Run CMake
+        run: >-
+          ctest -VV -S .github/ctest_configure.cmake ${{ env.CDASH_ARGS }}
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+          -DCMAKE_C_COMPILER=${{matrix.c_compiler}}
+          -DCMAKE_CXX_COMPILER=${{matrix.cxx_compiler}}
+          -DBUILD_TESTING_FULL=ON
+          -DZFP_WITH_OPENMP=${{matrix.omp}}
+          -DBUILD_ZFPY=ON
+          -DPYTHON_INCLUDE_DIR=$(python -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())")
+          -DPYTHON_LIBRARY=$(python -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+      - name: Build
+        run: ctest -VV -S .github/ctest_build.cmake ${{ env.CDASH_ARGS }}
+
+      - name: Run Tests
+        run: ctest -VV -S .github/ctest_test.cmake ${{ env.CDASH_ARGS }}
+
+  windows:
+    runs-on: ${{matrix.os}}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - generator: Visual Studio 17 2022
+            os: windows-2022
+            platform: x64
+            build_type: Release
+
+          - generator: Visual Studio 17 2022
+            os: windows-2022
+            platform: x86
+            build_type: Release
+
+          - generator: MinGW Makefiles
+            os: windows-2022
+            platform: x64
+            build_type: Release
+    defaults:
+      run:
+        shell: bash
+    env:
+      CDASH_ARGS: >-
+          -DCTEST_BINARY_DIRECTORY="${{github.workspace}}\\build"
+          -DCTEST_BUILD_NAME="${{matrix.os}}-${{matrix.platform}}-${{matrix.generator}}"
+          -DCTEST_CMAKE_GENERATOR="${{matrix.generator}}"
+          -DCTEST_SITE="Github"
+          -DCTEST_SOURCE_DIRECTORY="${{github.workspace}}"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - uses: TheMrMilchmann/setup-msvc-dev@368ef7d1ee4d1171b31d4a7f67f4d954f903f5a9 # v4.1.0
+        if: startsWith(matrix.generator, 'Visual Studio')
+        with:
+          arch: ${{matrix.platform}}
+
+      - name: Install compiler
+        if: startsWith(matrix.generator, 'MinGW')
+        id: install_cc
+        uses: rlalik/setup-cpp-compiler@3dbf473b4e7d87af3e7f329ca64bca40b2bae127 # v2
+        with:
+          compiler: latest
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.x'
+          architecture: ${{matrix.platform}}
+
+      - name: Install zfpy dependencies
+        run: |
+          python -m pip install cython
+          python -m pip install oldest-supported-numpy
+          python -m pip install setuptools
+          python -m pip install packaging
+
+      - if: github.event_name == 'pull_request'
+        run: echo "CDASH_ARGS=${CDASH_ARGS} -DCTEST_UPDATE_VERSION_OVERRIDE=${{ github.event.pull_request.head.sha }}" >> "${GITHUB_ENV}"
+
+      - if: startsWith(matrix.generator, 'Visual Studio')
+        run: |
+          echo "CDASH_ARGS=${CDASH_ARGS} -DCMAKE_CXX_FLAGS:STRING=//wd4530 -DCTEST_CMAKE_EXTRA_OPTIONS=\"-A ${{matrix.platform == 'x86' && 'Win32' || 'x64'}}\"" >> "${GITHUB_ENV}"
+
+      - if: startsWith(matrix.generator, 'MinGW')
+        run: |
+          echo "CDASH_ARGS=${CDASH_ARGS} -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++" >> "${GITHUB_ENV}"
+          echo "CTEST_EXCLUSIONS=test_numpy" >> "${GITHUB_ENV}"
+
+      - name: Configure
+        run: >-
+          ctest -VV -S .github/ctest_configure.cmake ${{ env.CDASH_ARGS }}
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+          -DBUILD_CFP=ON
+          -DBUILD_EXAMPLES=ON
+          -DBUILD_TESTING_FULL=ON
+          -DBUILD_UTILITIES=ON
+          -DBUILD_ZFPY=ON
+          -DCFP_NAMESPACE=cfp2
+          -DZFP_WITH_OPENMP=ON
+
+      - name: Build
+        run: ctest -VV -S .github/ctest_build.cmake ${{ env.CDASH_ARGS }}
+
+      - name: Test
+        run: ctest -C ${{ matrix.build_type }} -VV -S .github/ctest_test.cmake ${{ env.CDASH_ARGS }}

@@ -42,6 +42,8 @@ Questions answered in this FAQ:
   #. :ref:`How large a buffer is needed for compressed storage? <q-max-size>`
   #. :ref:`How can I print array values? <q-printf>`
   #. :ref:`What is known about zfp compression errors? <q-err-dist>`
+  #. :ref:`Why are zfp blocks 4 * 4 * 4 values? <q-block-size>`
+  #. :ref:`Can zfp (de)compress a single array in chunks? <q-chunked>`
 
 -------------------------------------------------------------------------------
 
@@ -259,6 +261,10 @@ A: Yes, but your mileage may vary.  Dense matrices, unlike smooth scalar
 fields, rarely exhibit correlation between adjacent rows and columns.  Thus,
 the quality or compression ratio may suffer.
 
+For examples of dense linear solvers that use |zfp| for matrix storage,
+see `STRUMPACK <https://portal.nersc.gov/project/sparse/strumpack/>`__
+and `ButterflyPACK <https://portal.nersc.gov/project/sparse/butterflypack/>`__.
+
 -------------------------------------------------------------------------------
 
 .. _q-structured:
@@ -472,6 +478,20 @@ implies that after every *m* 64-bit words have been decoded, the bit stream
 is advanced by *m* |times| *n* words to the next set of m 64-bit words
 associated with the block.
 
+Rather than overcoming the technical challenges discussed here, we advocate a
+simpler, compressor-agnostic approach to progressive-precision access:
+
+#. V. Magri, P. Lindstrom,
+   "`A General Framework for Progressive Data Compression and Retrieval <https://doi.org/10.1109/TVCG.2023.3327186>`__,"
+   IEEE Transactions on Visualization and Computer Graphics, 2024.
+
+Additional benefits of this framework include:
+
+- No need to perform surgery on |zfp|.
+- Support for arbitrarily small |zfp| error tolerances (see
+  :ref:`Q17 <q-tolerance>`) and even lossless compression in the limit.
+- Easy integration with current file formats and I/O libraries.
+
 -------------------------------------------------------------------------------
 
 .. _q-init:
@@ -498,31 +518,49 @@ information independently.
 
 Q15: *Must I use the same parameters during compression and decompression?*
 
-A: Not necessarily.  When decompressing one block at a time, it is possible
-to use more tightly constrained :c:type:`zfp_stream` parameters during
-decompression than were used during compression.  For instance, one may use a
-smaller :c:member:`zfp_stream.maxbits`,
-smaller :c:member:`zfp_stream.maxprec`, or larger :c:member:`zfp_stream.minexp`
-during decompression to process fewer compressed bits than are stored, and to
-decompress the array more quickly at a lower precision.  This may be useful
-in situations where the precision and accuracy requirements are not known a
-priori, thus forcing conservative settings during compression, or when the
-compressed stream is used for multiple purposes.  For instance, visualization
-usually has less stringent precision requirements than quantitative data
-analysis.  This feature of decompressing to a lower precision is particularly
-useful when the stream is stored progressively (see :ref:`Q13 <q-progressive>`).
+A: Usually, but there are exceptions.  When decompressing one block at a time
+using the :ref:`low-level API <ll-api>`, it is possible to use more tightly
+constrained :c:type:`zfp_stream` parameters during decompression than were
+used during compression.  For instance, one may use a smaller
+:c:member:`zfp_stream.maxbits`, smaller :c:member:`zfp_stream.maxprec`, or
+larger :c:member:`zfp_stream.minexp` during decompression to process fewer
+compressed bits than are stored, and to decompress the array more quickly at
+a lower precision.  This may be useful in situations where the precision and
+accuracy requirements are not known a priori, thus forcing conservative
+settings during compression, or when the compressed stream is used for
+multiple purposes.  For instance, visualization usually has less stringent
+precision requirements than quantitative data analysis.  This feature of
+decompressing to a lower precision is particularly useful when the stream is
+stored progressively (see :ref:`Q13 <q-progressive>`).
 
-Note that one may not use less constrained parameters during decompression,
-e.g., one cannot ask for more than :c:member:`zfp_stream.maxprec` bits of
-precision when decompressing.  Furthermore, the parameters must agree between
-compression and decompression when calling the high-level API function
-:c:func:`zfp_decompress`.
+Note, however, that when doing so, the caller must manually fast-forward
+the stream (using :c:func:`stream_rseek`) to the beginning of the next block
+before decompressing it, which may require extra bookkeeping.
 
-Currently float arrays have a different compressed representation from
-compressed double arrays due to differences in exponent width.  It is not
-possible to compress a double array and then decompress (demote) the result
-to floats, for instance.  Future versions of the |zfp| codec may use a unified
-representation that does allow this.
+Also note that one may not use less constrained parameters during
+decompression, e.g., one cannot ask for more than
+:c:member:`zfp_stream.maxprec` bits of precision when decompressing.
+Furthermore, the parameters must agree between compression and decompression
+when calling the high-level API function :c:func:`zfp_decompress`.
+
+With regards to the :c:type:`zfp_field` struct passed to
+:c:func:`zfp_compress` and :c:func:`zfp_decompress`, field dimensions must
+generally match between compression and decompression, though see
+:ref:`Q32 <q-chunked>` on chunked (de)compression.  Strides, however, need
+not match; see :ref:`Q16 <q-strides>`.  Additionally, the scalar type,
+:c:type:`zfp_type`, must match.  For example, float arrays currently have a
+compressed representation different from compressed double arrays due to
+differences in exponent width.  It is not possible to compress a double array
+and then decompress (demote) the result to floats, for instance.  Future
+versions of the |zfp| codec may use a unified representation that does allow
+this.
+
+By default, compression parameters and array metadata are not stored in the
+compressed stream, as often such information is recorded separately.
+However, the user may optionally record both compression parameters and array
+metadata in a header at the beginning of the compressed stream; see
+:c:func:`zfp_write_header`, :c:func:`zfp_read_header`, and further discussion
+:ref:`here <field-match>`.
 
 -------------------------------------------------------------------------------
 
@@ -543,6 +581,33 @@ scalar fields can later be decompressed as non-interleaved fields::
 
 using strides *sx* = 1, *sy* = *nx* and pointers :code:`&out[0][0][0]`
 and :code:`&out[1][0][0]`.
+
+Another use case is when a compressed array is to be decompressed into a
+larger surrounding array.  For example, a 3D subarray with dimensions
+*mx* |times| *my* |times| *mz* may be decompressed into a larger array
+with dimensions *nx* |times| *ny* |times| *nz*, with *mx* |leq| *nx*,
+*my* |leq| *ny*, *mz* |leq| *nz*.  This can be achieved by setting the strides
+to *sx* = 1, *sy* = *nx*, *sz* = *nx* |times| *ny* upon decompression (using
+:c:func:`zfp_field_set_stride_3d`), while specifying *mx*, *my*, and *mz* as
+the field dimensions (using :c:func:`zfp_field_3d` or
+:c:func:`zfp_field_set_size_3d`).  In this case, one may also wish to offset
+the decompressed subarray to (*ox*, *oy*, *oz*) within the larger array
+using::
+
+  float* data = new float[nx * ny * nz];
+  pointer = data + ox * sx + oy * sy + oz * sz
+
+where *data* specifies the beginning of the larger array.  *pointer* rather
+than *data* would then be passed to :c:func:`zfp_field_3d` or
+:c:func:`zfp_field_set_pointer` before calling :c:func:`zfp_decompress`.
+
+.. note::
+  Strides are a property of the in-memory layout of an uncompressed array
+  and have no meaning with respect to the compressed bit stream representation
+  of the array.  As such, |zfp| provides no mechanism for storing information
+  about the original strides in the compressed stream.  If strides are to be
+  retained upon decompression, then the user needs to record them as auxiliary
+  metadata and initialize :c:type:`zfp_field` with them.
 
 -------------------------------------------------------------------------------
 
@@ -668,8 +733,8 @@ the number of blocks *bx* |times| *by*::
 
   bitsize = (4 * bx) * (4 * by) * rate
 
-where *nx* |leq| 4 |times| bx < *nx* + 4 and
-*ny* |leq| 4 |times| *by* < *ny* + 4.  When amortizing bitsize over the
+where *nx* |leq| 4 |times| *bx* < *nx* + 4 and
+*ny* |leq| 4 |times| *by* < *ny* + 4.  When amortizing *bitsize* over the
 *nx* |times| *ny* values, a slightly higher rate than requested may result.
 
 Third, to support updating compressed blocks, as is needed by |zfp|'s
@@ -705,8 +770,8 @@ uncompressed array to avoid having to allocate separate storage for the
 compressed stream.  |zfp| does allow for the possibility of such in-place
 compression, but with several caveats and restrictions:
 
-  1. A bitstream must be created whose buffer points to the beginning of
-     uncompressed (and to be compressed) storage.
+  1. A :c:type:`bitstream` must be created whose buffer points to the beginning
+     of uncompressed (and to be compressed) storage.
 
   2. The array must be compressed using |zfp|'s low-level API.  In particular,
      the data must already be partitioned and organized into contiguous blocks
@@ -763,8 +828,11 @@ floating-point values and then losslessly compressing the result.  The
 *q* least significant bits of *n*-bit floating-point numbers (*n* = 32
 for floats and *n* = 64 for doubles) are truncated by |zfp| by specifying a
 maximum precision of *p* = *n* |minus| *q*.  The resulting point-wise relative
-error is then at most 2\ :sup:`q - 23` (for floats) or 2\ :sup:`q - 52`
-(for doubles).
+error is then at most 2\ :sup:`3 d + q - 23` for floats and
+2\ :sup:`3 d + q - 52` for doubles, where *d* is the dimensionality of
+the data (1 |leq| *d* |leq| 4).  Expressed in terms of *p*, the relative error
+is at most 2\ :sup:`3 (d + 3) - p` for floats and 2\ :sup:`3 (d + 4) - p`
+for doubles.
 
 .. note::
   For large enough *q*, floating-point exponent bits will be discarded,
@@ -773,15 +841,21 @@ error is then at most 2\ :sup:`q - 23` (for floats) or 2\ :sup:`q - 52`
   for subnormals; however, such values are likely too small for relative
   errors to be meaningful.
 
+.. warning::
+  For the bound to hold, |zfp| must be modified to avoid the non-reversible
+  code path when less than full precision is used.  This issue will be
+  addressed in the next |zfp| release.
+
 To bound the relative error, set the expert mode parameters to::
 
-  minbits = 0
-  maxbits = 0
+  minbits = ZFP_MIN_BITS
+  maxbits = ZFP_MAX_BITS
   maxprec = p
   minexp = ZFP_MIN_EXP - 1 = -1075
 
 For example, using the |zfpcmd| command-line tool, set the parameters using
-:option:`-c` :code:`0 0 p -1075`.
+:option:`-c` :code:`0 0 p -1075` (|zfpcmd| will replace the zeros with
+defaults).
 
 Note that while the above approach respects the error bound when the
 above conditions are met, it uses |zfp| for a purpose it was not designed
@@ -968,7 +1042,7 @@ and *q* = 55 + 4 |times| *d* |leq| 64 bits of precision for double-precision
 data.  Of course, the constraint imposed by the available integer precision
 *n* implies that lossless compression of such data is possible only in 1D for
 single-precision data and only in 1D and 2D for double-precision data.
-Finally, to preserve special values such as negative zero, plus and minues
+Finally, to preserve special values such as negative zero, plus and minus
 infinity, and NaNs, reversible mode is needed.
 
 -------------------------------------------------------------------------------
@@ -1036,7 +1110,7 @@ Q24: *Are zfp's compressed arrays and other data structures thread-safe?*
 A: Yes, compressed arrays can be made thread-safe; no, data structures
 like :c:type:`zfp_stream` and :c:type:`bitstream` are not necessarily
 thread-safe.  As of |zfp| |viewsrelease|, thread-safe read and write access
-to compressed arrays is provided through the use of
+to compressed arrays via OpenMP threads is provided through the use of
 :ref:`private views <private_immutable_view>`, although these come with
 certain restrictions and requirements such as the need for the user to
 enforce cache coherence.  Please see the documentation on
@@ -1153,6 +1227,8 @@ it is useful to know the maximum number of bits that a compressed block
 can occupy.  In addition to the :c:macro:`ZFP_MAX_BITS` macro, the following
 table lists the maximum block size (in bits) for each scalar type, whether
 :ref:`reversible mode <mode-reversible>` is used, and block dimensionality.
+Note that these sizes are upper bounds that are independent of compression
+parameter settings, which may further constrain the storage size.
 
   +--------+---------+-------+-------+-------+-------+
   | type   | rev.    |   1D  |   2D  |   3D  |   4D  |
@@ -1173,6 +1249,9 @@ table lists the maximum block size (in bits) for each scalar type, whether
   | double +---------+-------+-------+-------+-------+
   |        | |check| |   278 |  1058 |  4178 | 16658 |
   +--------+---------+-------+-------+-------+-------+
+
+The function :c:func:`zfp_block_maximum_size` returns the block sizes encoded
+in this table.
 
 -------------------------------------------------------------------------------
 
@@ -1230,18 +1309,24 @@ Q30: *What is known about zfp compression errors?*
 A: Significant effort has been spent on characterizing compression errors
 resulting from |zfp|, as detailed in the following publications:
 
-* P. Lindstrom,
-  "`Error Distributions of Lossy Floating-Point Compressors <https://www.osti.gov/servlets/purl/1526183>`__,"
-  JSM 2017 Proceedings.
-* J. Diffenderfer, A. Fox, J. Hittinger, G. Sanders, P. Lindstrom,
-  "`Error Analysis of ZFP Compression for Floating-Point Data <http://doi.org/10.1137/18M1168832>`__,"
-  SIAM Journal on Scientific Computing, 2019.
-* D. Hammerling, A. Baker, A. Pinard, P. Lindstrom,
-  "`A Collaborative Effort to Improve Lossy Compression Methods for Climate Data <http://doi.org/10.1109/DRBSD-549595.2019.00008>`__,"
-  5th International Workshop on Data Analysis and Reduction for Big Scientific Data, 2019.
-* A. Fox, J. Diffenderfer, J. Hittinger, G. Sanders, P. Lindstrom.
-  "`Stability Analysis of Inline ZFP Compression for Floating-Point Data in Iterative Methods <http://doi.org/10.1137/19M126904X>`__,"
-  SIAM Journal on Scientific Computing, 2020.
+#. P. Lindstrom,
+   "`Error Distributions of Lossy Floating-Point Compressors <https://www.osti.gov/servlets/purl/1526183>`__,"
+   JSM 2017 Proceedings.
+#. J. Diffenderfer, A. Fox, J. Hittinger, G. Sanders, P. Lindstrom,
+   "`Error Analysis of ZFP Compression for Floating-Point Data <https://doi.org/10.1137/18M1168832>`__,"
+   SIAM Journal on Scientific Computing, 2019.
+#. D. Hammerling, A. Baker, A. Pinard, P. Lindstrom,
+   "`A Collaborative Effort to Improve Lossy Compression Methods for Climate Data <https://doi.org/10.1109/DRBSD-549595.2019.00008>`__,"
+   5\ :sup:`th` International Workshop on Data Analysis and Reduction for Big Scientific Data, 2019.
+#. A. Fox, J. Diffenderfer, J. Hittinger, G. Sanders, P. Lindstrom.
+   "`Stability Analysis of Inline ZFP Compression for Floating-Point Data in Iterative Methods <https://doi.org/10.1137/19M126904X>`__,"
+   SIAM Journal on Scientific Computing, 2020.
+#. P. Lindstrom, J. Hittinger, J. Diffenderfer, A. Fox, D. Osei-Kuffuor, J. Banks.
+   "`ZFP: A Compressed Array Representation for Numerical Computations <https://doi.org/10.1177/10943420241284023>`__,"
+   International Journal of High-Performance Computing Applications, 2025.
+#. A. Fox, P. Lindstrom.
+   "`Enhancing ZFP: A Statistical Approach to Understanding and Reducing Error Bias in a Lossy Floating-Point Compression Algorithm <https://doi.org/10.48550/arXiv.2407.01826>`__,"
+   SIAM Journal on Scientific Computing, to appear.
 
 In short, |zfp| compression errors are roughly normally distributed as a
 consequence of the central limit theorem, and can be bounded.  Because the
@@ -1252,9 +1337,8 @@ are far smaller than the absolute error tolerance specified in
 (see :ref:`Q22 <q-abserr>`).
 
 It is known that |zfp| errors can be slightly biased and correlated (see
-:numref:`zfp-rounding` and the third paper above).  Recent work has been
-done to combat such issues by supporting optional
-:ref:`rounding modes <rounding>`.
+:numref:`zfp-rounding` and papers #3 and #6 above).  Recent work has been done
+to combat such issues by supporting optional :ref:`rounding modes <rounding>`.
 
 .. _zfp-rounding:
 .. figure:: zfp-rounding.pdf
@@ -1268,3 +1352,176 @@ done to combat such issues by supporting optional
   (left), errors are biased and depend on the relative location within a |zfp|
   block, resulting in errors not centered on zero.  With proper rounding
   (right), errors are both smaller and unbiased.
+
+It is also known how |zfp| compression errors behave as a function of grid
+spacing, *h*.  In particular, regardless of dimensionality, the compression
+error *decreases* with finer grids (smaller *h*) for a given rate (i.e.,
+fixed compressed storage size).  The |zfp| compression error decay is fast
+enough that the corresponding error in partial derivative estimates based on
+finite differences, which *increases* with smaller *h* when using conventional
+floating point, instead *decreases* with finer grids when using |zfp|.  See
+paper #5 for details.
+
+-------------------------------------------------------------------------------
+
+.. _q-block-size:
+
+Q31: *Why are zfp blocks 4* |times| *4* |times| *4 values?*
+
+One might ask why |zfp| uses *d*-dimensional blocks of |4powd| values and not
+some other, perhaps configurable block size, *n*\ :sup:`d`.  There are several
+reasons why *n* = 4 was chosen:
+
+* For good performance, *n* should be an integer power of two so that indexing
+  can be done efficiently using bit masks and shifts rather than more
+  expensive division and modulo operations.  As nontrivial compression demands
+  *n* > 1, possible choices for *n* are 2, 4, 8, 16, ...
+
+* When *n* = 2, blocks are too small to exhibit significant redundancy; there
+  simply is insufficient spatial correlation to exploit for sufficient data
+  reduction.  Additionally, excessive software cache thrashing would likely
+  occur for stencil computations, as even the smallest centered difference
+  stencil would span more than one block.  Finally, per-block overhead in
+  storage (e.g., shared exponent, bit offset) and computation (e.g., software
+  cache lookup) could be amortized over only few values.  Such small blocks
+  were immediately dismissed.
+
+* When *n* = 8, blocks are too large, for several reasons:
+
+  * Each uncompressed block occupies a large number of hardware cache lines.
+    For example, a single 3D block of double-precision values would occupy
+    4,096 bytes, which would represent a significant fraction of L1 cache.
+    |zfp| reduces data movement in computations by ensuring that repeated
+    accesses are to cached data rather than to main memory.
+
+  * A generalization of the |zfp| :ref:`decorrelating transform <algorithm>`
+    to *n* = 8 would require many more operations as well as "arbitrary"
+    numerical constants in need of expensive multiplication instead of cheap
+    bit shifts.  The number of operations in this more general case scales as
+    *d* |times| *n*\ :sup:`d+1`.  For *d* = 4, *n* = 8, this implies
+    2\ :sup:`17` = 131,072 multiplications and 114,688 additions per block.
+    Contrast this with the algorithm optimized for *n* = 4, which uses only
+    1,536 bit shifts and 2,560 additions or subtractions per 4D block.
+
+  * The additional computational cost would also significantly increase the
+    latency of decoding a single block or filling a pipeline of concurrently
+    (de)compressed blocks, as in existing |zfp| hardware implementations.
+
+  * The computational and cache storage overhead of accessing a single value
+    in a block would be very large: 4,096 values in *d* = 4 dimensions would
+    have to be decoded even if only one value were requested.
+
+  * "Skinny" arrays would have to be padded to multiples of *n* = 8, which
+    could introduce an unacceptable storage overhead.  For instance, a
+    30 |times| 20 |times| 3 array of 1,800 values would be padded to
+    32 |times| 24 |times| 8 = 6,144 values, an increase of about 3.4 times.
+    In contrast, when *n* = 4, only 32 |times| 20 |times| 4 = 2,560 values
+    would be needed, representing a 60% overhead.
+
+  * The opportunity for data parallelism would be reduced by a factor of
+    2\ :sup:`d` compared to using *n* = 4.  The finer granularity and larger
+    number of blocks provided by *n* = 4 helps with load balancing and maps
+    well to today's GPUs that can concurrently process thousands of blocks.
+
+  * With blocks comprising as many as 8\ :sup:`4` = 4,096 values, register
+    spillage would be substantial in GPU kernels for compression and
+    decompression.
+
+The choice *n* = 4 seems to be a sweet spot that well balances all of the
+above factors.  Additionally, *n* = 4 has these benefits:
+
+  * *n* = 4 admits a very simple lifted implementation of the decorrelating
+    transform that can be performed using only integer addition, subtraction,
+    and bit shifts.
+
+  * *n* = 4 allows taking advantage of AVX/SSE instructions designed for
+    vectors of length four, both in the (de)compression algorithm and
+    application code.
+
+  * For 2D and 3D data, a block is 16 and 64 values, respectively, which
+    either equals or is close to the warp size on current GPU hardware.  This
+    allows multiple cooperating threads to execute the same instruction on one
+    value in 1-4 blocks (either during (de)compression or in the numerical
+    application code).
+
+  * Using a rate of 16 bits/value (a common choice for numerical computations),
+    a compressed 3D block occupies 128 bytes, or 1-2 hardware cache lines on
+    contemporary computers.  Hence, a fair number of *compressed* blocks can
+    also fit in hardware cache.
+
+-------------------------------------------------------------------------------
+
+.. _q-chunked:
+
+Q32: *Can zfp (de)compress a single array in chunks?*
+
+Yes, but there are restrictions.
+
+First, one can trivially partition any array into subarrays and (de)compress
+those independently using separate matching :c:func:`zfp_compress` and
+:c:func:`zfp_decompress` calls for each chunk.  Via subarray dimensions,
+strides, and pointers into the larger array, one can thus (de)compress the
+full array in pieces; see also :ref:`Q16 <q-strides>`.  This approach to
+chunked (de)compression incurs no constraints on compression mode, compression
+parameters, or array dimensions, though producer and consumer must agree on
+chunk size.  This type of chunking is employed by the |zfp| HDF5 filter
+`H5Z-ZFP <https://github.com/LLNL/H5Z-ZFP>`__ for I/O.
+
+A more restricted form of chunked (de)compression is to produce (compress) or
+consume (decompress) a single compressed stream for the whole array in chunks
+in a manner compatible with producing/consuming the entire stream all at once.
+Such chunked (de)compression divides the array into slabs along the slowest
+varying dimension (e.g., along *z* for 3D arrays), (de)compresses one slab at
+a time, and produces or consumes consecutive pieces of the sequential
+compressed stream.  This approach, too, is possible, though only when these
+requirements are met:
+
+* The size of each chunk (except the last) must be a whole multiple of four
+  along the slowest varying dimension; other dimensions are not subject to this
+  constraint.  For example, a 3D array with *nz* = 120 can be (de)compressed
+  in two or three equal-size chunks, but not four, since 120/2 = 60, and
+  120/3 = 40 are both divisible by four, but 120/4 = 30 is not.  Other viable
+  chunk sizes are 120/5 = 24, 120/6 = 20, 120/10 = 12, 120/15 = 8, and
+  120/30 = 4.  Note that other chunk sizes may be possible by relaxing the
+  constraint that they all be equal, as exploited by the
+  :ref:`chunk <ex-chunk>` code example, e.g., *nz* = 120 can be partitioned
+  into three chunks of size 32 and one of size 24.
+
+  The reason for this requirement is that |zfp| always pads each compressed
+  (sub)array to fill out whole blocks of size 4 in each dimension, and such
+  interior padding would not occur if the whole array were compressed as a
+  single chunk.
+
+* The length of the compressed substream for each chunk must be a multiple of
+  the :ref:`word size <word-size>`.  The reason for this is that each
+  :c:func:`zfp_compress` and :c:func:`zfp_decompress` call aligns the stream
+  on a word boundary upon completion.  One may avoid this requirement by using
+  the low-level API, which does not automatically perform such alignment.
+
+.. note::
+
+  When using the :ref:`high-level API <hl-api>`, the requirement on stream
+  alignment essentially limits chunked (de)compression to
+  :ref:`fixed-rate mode <mode-fixed-rate>`, as it is the only one that can
+  guarantee that the size of each compressed chunk is a multiple of the word
+  size.  To support other compression modes, use the
+  :ref:`low-level API <ll-api>`.
+
+Chunked (de)compression requires the user to set the :c:type:`zfp_field`
+dimensions to match the current chunk size and to set the
+:ref:`field pointer <zfp_field_set>` to the beginning of each uncompressed
+chunk before (de)compressing it.  The user may also have to position the
+compressed stream so that it points to the beginning of each compressed
+chunk.  See the :ref:`code example <ex-chunk>` for how one may implement
+chunked (de)compression.
+
+Note that the chunk size used for compression need not match the size used for
+decompression; e.g., the array may be compressed in a single sweep but
+decompressed in chunks, or vice versa.  Any combination of chunk sizes that
+respect the above constraints is valid.
+
+Chunked (de)compression makes it possible to perform, for example, windowed
+streaming computations on smaller subsets of the decompressed array at a time,
+i.e., without having to allocate enough space to hold the entire uncompressed
+array.  It also can be useful for overlapping or interleaving computation with
+(de)compression in a producer/consumer model.

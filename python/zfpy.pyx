@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 import sys
 import operator
 import functools
@@ -34,6 +36,8 @@ mode_expert = zfp_mode_expert
 mode_fixed_rate = zfp_mode_fixed_rate
 mode_fixed_precision = zfp_mode_fixed_precision
 mode_fixed_accuracy = zfp_mode_fixed_accuracy
+
+__version__ = str(ZFP_VERSION_STRING, encoding='utf-8')
 
 
 cpdef dtype_to_ztype(dtype):

@@ -1,8 +1,10 @@
 ZFP
 ===
-[![Github Actions Build Status](https://github.com/LLNL/zfp/actions/workflows/main.yml/badge.svg?branch=release1.0.0)](https://github.com/LLNL/zfp/actions/workflows/main.yml)
-[![Appveyor Build Status](https://ci.appveyor.com/api/projects/status/qb3ld7j11segy52k/branch/release1.0.0?svg=true)](https://ci.appveyor.com/project/lindstro/zfp)
-[![Documentation Status](https://readthedocs.org/projects/zfp/badge/?version=release1.0.0)](https://zfp.readthedocs.io/en/release1.0.0/)
+[![GitHub Actions Test Status](https://github.com/LLNL/zfp/actions/workflows/tests.yml/badge.svg)](https://github.com/LLNL/zfp/actions/workflows/tests.yml)
+[![Documentation Status](https://readthedocs.org/projects/zfp/badge/?version=release1.0.1)](https://zfp.readthedocs.io/en/release1.0.1/)
+[![Code Coverage](https://codecov.io/gh/LLNL/zfp/branch/develop/graph/badge.svg?token=jqvMVvgRQ9)](https://codecov.io/gh/LLNL/zfp)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16409/badge)](https://www.bestpractices.dev/projects/16409)
+[![R&D100 - Winner](https://img.shields.io/badge/R%26D100-Winner-gold)](https://www.rdworldonline.com/rd-100-winners-for-2023-are-announced-2/)
 
 zfp is a compressed format for representing multidimensional floating-point
 and integer arrays.  zfp provides compressed-array classes that support high
@@ -55,19 +57,20 @@ zfp may also be built using GNU make:
 Note: GNU builds are less flexible and do not support all available features,
 e.g., CUDA support.
 
-For further configuration and build instructions, please consult the
-[documentation](https://zfp.readthedocs.io/en/release1.0.0/installation.html).
+Finally, zfp may also be installed using package managers such as `apt`,
+`brew`, `conda`, `dnf`, `pacman`, `pip`, `port`, `spack`, `vcpkg`, and
+`yum`.  For further installation instructions, please consult the
+[documentation](https://zfp.readthedocs.io/en/latest/installation.html).
 For examples of how to call the C library and use the C++ array classes,
-see the [examples](https://zfp.readthedocs.io/en/release1.0.0/examples.html)
+see the [examples](https://zfp.readthedocs.io/en/latest/examples.html)
 section.
 
 
 Documentation
 -------------
 
-Full HTML [documentation](http://zfp.readthedocs.io/en/release1.0.0) is
-available online.
-A [PDF](http://readthedocs.org/projects/zfp/downloads/pdf/release1.0.0/)
+Full HTML [documentation](http://zfp.readthedocs.io) is available online.
+A [PDF](http://readthedocs.org/projects/zfp/downloads/pdf/latest/)
 version is also available.
 
 Further information on the zfp software is included in these files:

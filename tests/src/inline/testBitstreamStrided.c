@@ -1,12 +1,14 @@
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <setjmp.h>
 #include <cmocka.h>
 
 #define BIT_STREAM_STRIDED
 
-#include "include/zfp/bitstream.h"
-#include "include/zfp/bitstream.inl"
+#include "zfp/internal/zfp/inline.h"
+#include "zfp/bitstream.h"
+#include "zfp/bitstream.inl"
 
 // 4 words per block
 #define BLOCK_SIZE 4

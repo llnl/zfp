@@ -11,7 +11,7 @@
 
 const uint zfp_codec_version = ZFP_CODEC;
 const uint zfp_library_version = ZFP_VERSION;
-const char* const zfp_version_string = "zfp version " ZFP_VERSION_STRING " (August 1, 2022)";
+const char* const zfp_version_string = "zfp version " ZFP_VERSION_STRING " (December 15, 2023)";
 
 /* private functions ------------------------------------------------------- */
 
@@ -48,6 +48,10 @@ is_reversible(const zfp_stream* zfp)
 
 #include "share/parallel.c"
 #include "share/omp.c"
+
+/* template instantiation of utility functions ------------------------------*/
+
+#include "template/utils.c"
 
 /* template instantiation of integer and float compressor -------------------*/
 
@@ -102,12 +106,40 @@ zfp_type_size(zfp_type type)
   }
 }
 
+size_t
+zfp_block_maximum_size(zfp_type type, uint dims, zfp_bool reversible)
+{
+  static const size_t size_table[2][4][4] = {
+    /* non-reversible mode */
+    {
+      { 131,  527, 2111,  8447 }, /* int32 */
+      { 259, 1039, 4159, 16639 }, /* int64 */
+      { 140,  536, 2120,  8456 }, /* float */
+      { 271, 1051, 4171, 16651 }, /* double */
+    },
+    /* reversible mode */
+    {
+      { 136,  532, 2116,  8452 }, /* int32 */
+      { 265, 1045, 4165, 16645 }, /* int64 */
+      { 146,  542, 2126,  8462 }, /* float */
+      { 278, 1058, 4178, 16658 }, /* double */
+    },
+  };
+
+  /* check arguments */
+  if (!(zfp_type_int32 <= type && type <= zfp_type_double) ||
+      !(1 <= dims && dims <= 4))
+    return 0;
+
+  return size_table[reversible ? 1 : 0][type - 1][dims - 1];
+}
+
 /* public functions: fields ------------------------------------------------ */
 
 zfp_field*
-zfp_field_alloc()
+zfp_field_alloc(void)
 {
-  zfp_field* field = (zfp_field*)malloc(sizeof(zfp_field));
+  zfp_field* field = malloc(sizeof(zfp_field));
   if (field) {
     field->type = zfp_type_none;
     field->nx = field->ny = field->nz = field->nw = 0;
@@ -189,7 +221,7 @@ zfp_field_begin(const zfp_field* field)
   if (field->data) {
     ptrdiff_t min;
     field_index_span(field, &min, NULL);
-    return (void*)((uchar*)field->data + min * (ptrdiff_t)zfp_type_size(field->type));
+    return (uchar*)field->data + min * (ptrdiff_t)zfp_type_size(field->type);
   }
   else
     return NULL;
@@ -220,13 +252,13 @@ zfp_field_size(const zfp_field* field, size_t* size)
     switch (zfp_field_dimensionality(field)) {
       case 4:
         size[3] = field->nw;
-        /* FALLTHROUGH */
+        fallthrough_
       case 3:
         size[2] = field->nz;
-        /* FALLTHROUGH */
+        fallthrough_
       case 2:
         size[1] = field->ny;
-        /* FALLTHROUGH */
+        fallthrough_
       case 1:
         size[0] = field->nx;
         break;
@@ -263,13 +295,13 @@ zfp_field_stride(const zfp_field* field, ptrdiff_t* stride)
     switch (zfp_field_dimensionality(field)) {
       case 4:
         stride[3] = field->sw ? field->sw : (ptrdiff_t)(field->nx * field->ny * field->nz);
-        /* FALLTHROUGH */
+        fallthrough_
       case 3:
         stride[2] = field->sz ? field->sz : (ptrdiff_t)(field->nx * field->ny);
-        /* FALLTHROUGH */
+        fallthrough_
       case 2:
         stride[1] = field->sy ? field->sy : (ptrdiff_t)field->nx;
-        /* FALLTHROUGH */
+        fallthrough_
       case 1:
         stride[0] = field->sx ? field->sx : 1;
         break;
@@ -465,7 +497,7 @@ zfp_field_set_metadata(zfp_field* field, uint64 meta)
 /* public functions: compression mode and parameter settings --------------- */
 
 zfp_config
-zfp_config_none()
+zfp_config_none(void)
 {
   zfp_config config;
   config.mode = zfp_mode_null;
@@ -507,7 +539,7 @@ zfp_config_accuracy(
 }
 
 zfp_config
-zfp_config_reversible()
+zfp_config_reversible(void)
 {
   zfp_config config;
   config.mode = zfp_mode_reversible;
@@ -536,7 +568,7 @@ zfp_config_expert(
 zfp_stream*
 zfp_stream_open(bitstream* stream)
 {
-  zfp_stream* zfp = (zfp_stream*)malloc(sizeof(zfp_stream));
+  zfp_stream* zfp = malloc(sizeof(zfp_stream));
   if (zfp) {
     zfp->stream = stream;
     zfp->minbits = ZFP_MIN_BITS;
@@ -716,6 +748,7 @@ zfp_stream_maximum_size(const zfp_stream* zfp, const zfp_field* field)
   size_t blocks = zfp_field_blocks(field);
   uint values = 1u << (2 * dims);
   uint maxbits = 0;
+  bitstream_size maxsize;
 
   if (!dims)
     return 0;
@@ -738,7 +771,17 @@ zfp_stream_maximum_size(const zfp_stream* zfp, const zfp_field* field)
   maxbits += values - 1 + values * MIN(zfp->maxprec, zfp_field_precision(field));
   maxbits = MIN(maxbits, zfp->maxbits);
   maxbits = MAX(maxbits, zfp->minbits);
-  return ((ZFP_HEADER_MAX_BITS + blocks * maxbits + stream_word_bits - 1) & ~(stream_word_bits - 1)) / CHAR_BIT;
+  
+  /* compute number of bytes in multiples of words */
+  maxsize = ZFP_HEADER_MAX_BITS + (bitstream_size)blocks * maxbits;
+  maxsize = _t1(round_up, bitstream_size)(maxsize, stream_word_bits);
+  maxsize /= CHAR_BIT;
+
+  /* ensure maxsize fits in size_t to avoid silent truncation */
+  if ((size_t)maxsize != maxsize)
+    return 0;
+
+  return (size_t)maxsize;
 }
 
 void
@@ -759,8 +802,9 @@ zfp_stream_set_reversible(zfp_stream* zfp)
 double
 zfp_stream_set_rate(zfp_stream* zfp, double rate, zfp_type type, uint dims, zfp_bool align)
 {
-  uint n = 1u << (2 * dims);
+  const uint n = 1u << (2 * dims);
   uint bits = (uint)floor(n * rate + 0.5);
+
   switch (type) {
     case zfp_type_float:
       bits = MAX(bits, 1 + 8u);
@@ -771,15 +815,16 @@ zfp_stream_set_rate(zfp_stream* zfp, double rate, zfp_type type, uint dims, zfp_
     default:
       break;
   }
-  if (align) {
-    /* for write random access, round up to next multiple of stream word size */
-    bits += (uint)stream_word_bits - 1;
-    bits &= ~(stream_word_bits - 1);
-  }
+
+  /* for write random access, round up to next multiple of stream word size */
+  if (align)
+    bits = _t1(round_up, uint)(bits, (uint)stream_word_bits);
+
   zfp->minbits = bits;
   zfp->maxbits = bits;
   zfp->maxprec = ZFP_MAX_PREC;
   zfp->minexp = ZFP_MIN_EXP;
+
   return (double)bits / n;
 }
 
@@ -941,7 +986,7 @@ zfp_stream_set_execution(zfp_stream* zfp, zfp_exec_policy policy)
         zfp_exec_params_omp* params = malloc(sizeof(zfp_exec_params_omp));
         params->threads = 0;
         params->chunk_size = 0;
-        zfp->exec.params = (void*)params;
+        zfp->exec.params = params;
       }
       break;
 #else

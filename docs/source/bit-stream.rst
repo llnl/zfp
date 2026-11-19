@@ -14,7 +14,7 @@ against.
 
 From an implementation standpoint, bit streams are read from and written
 to memory in increments of *words* of bits.  The constant power-of-two
-word size is configured at :ref:`compile time <config>`, and is limited
+:ref:`word size <word-size>` is configured at compile time, and is limited
 to 8, 16, 32, or 64 bits.
 
 The bit stream API is publicly exposed and may be used to write additional
@@ -144,6 +144,14 @@ Functions
 
   Allocate a :c:type:`bitstream` struct and associate it with the memory
   buffer allocated by the caller.
+
+.. note::
+  Because buffer reads and writes are made in multiples of words, the caller
+  should take care that *buffer* is word-aligned and that the buffer size,
+  *bytes*, is a multiple of the :ref:`word size <word-size>`.  This function
+  will if necessary shrink the buffer size just enough to meet this
+  requirement.  Note that :c:func:`zfp_stream_maximum_size` ensures that the
+  returned buffer size is a multiple of the word size.
 
 ----
 

@@ -4,7 +4,8 @@
 
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
-    LLNL_SLURM_SCHEDULER_PARAMETERS: "--nodes=1 -A asccasc -t 00:15:00"
+    LLNL_SLURM_SCHEDULER_PARAMETERS: "--nodes=1 -t 00:20:00"
+    LLNL_SERVICE_USER: zfp
 
 stages:
     - build
@@ -73,7 +74,6 @@ stages:
 .build_gpu:
     before_script:
         - module reset
-        - module load opt
         - module load $ci_cmake
         - module load $ci_cmp_mod
         - module load $ci_gcc_mod
@@ -135,9 +135,17 @@ stages:
 ############
 
 include:
-    - local: tests/gitlab/pascal-templates.yml
-    - local: tests/gitlab/pascal-jobs.yml
-    - local: tests/gitlab/quartz-templates.yml
-    - local: tests/gitlab/quartz-jobs.yml
+    - project: 'lc-templates/id_tokens'
+      file: 'id_tokens.yml'
+#    - local: tests/gitlab/pascal-templates.yml
+#    - local: tests/gitlab/pascal-jobs.yml
+#    - local: tests/gitlab/lassen-templates.yml
+#    - local: tests/gitlab/lassen-jobs.yml
+    - local: tests/gitlab/matrix-templates.yml
+    - local: tests/gitlab/matrix-jobs.yml
+    - local: tests/gitlab/dane-templates.yml
+    - local: tests/gitlab/dane-jobs.yml
+#    - local: tests/gitlab/quartz-templates.yml
+#    - local: tests/gitlab/quartz-jobs.yml
 #    - local: tests/gitlab/corona-templates.yml
 #    - local: tests/gitlab/corona-jobs.yml
