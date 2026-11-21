@@ -1,9 +1,13 @@
 name: Coverage Report
 
-on:
-  workflow_run:
-    workflows: [Tests]
-    types: [completed]
+# for production: use coverage workflow from default branch (develop)
+#on:
+# workflow_run:
+#   workflows: [Tests]
+#   types: [completed]
+
+# for testing/debugging: use coverage workflow from feature branch
+on: push
 
 permissions:
   contents: read
@@ -11,13 +15,11 @@ permissions:
 jobs:
   coverage:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - compiler: gcc
-            cc: gcc-13
-            cxx: g++-13
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    env:
+      CC: gcc-13
+      CXX: g++-13
+    # comment out when running workflow on feature branch
+#   if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
