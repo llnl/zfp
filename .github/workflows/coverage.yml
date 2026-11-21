@@ -48,8 +48,8 @@ jobs:
       - name: Generate Coverage Report
         working-directory: ${{github.workspace}}/build
         run: |-
-          lcov --gcov-tool gcov-13 -c --directory ${{github.workspace}}/build --output-file coverage.info
-          lcov --remove coverage.info '${{github.workspace}}/build/tests/*' --remove coverage.info '${{github.workspace}}/tests/*' --remove coverage.info '/usr/include/*' -o coverage.info
+          lcov --gcov-tool gcov-13 --capture --directory ${{github.workspace}}/build --output-file coverage.info --ignore-errors inconsistent
+          lcov --gcov-tool gcov-13 --remove coverage.info '${{github.workspace}}/build/tests/*' --remove coverage.info '${{github.workspace}}/tests/*' --remove coverage.info '/usr/include/*' --output-file coverage.info
           lcov_cobertura ${{github.workspace}}/build/coverage.info -d -o ${{github.workspace}}/build/coverage.xml
 
       - name: Upload Report to Codecov
