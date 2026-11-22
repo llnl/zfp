@@ -15,6 +15,18 @@ const char* const zfp_version_string = "zfp version " ZFP_VERSION_STRING " (Dece
 
 /* private functions ------------------------------------------------------- */
 
+static zfp_bool
+set_size(size_t* ptr, uint64 value)
+{
+  size_t size = (size_t)value;
+  if ((uint64)size == value) {
+    *ptr = size;
+    return zfp_true;
+  }
+  else
+    return zfp_false;
+}
+
 static size_t
 field_index_span(const zfp_field* field, ptrdiff_t* min, ptrdiff_t* max)
 {
@@ -319,8 +331,22 @@ uint64
 zfp_field_metadata(const zfp_field* field)
 {
   uint64 meta = 0;
-  /* 48 bits for dimensions */
-  switch (zfp_field_dimensionality(field)) {
+  uint type = field->type;
+  uint dims = zfp_field_dimensionality(field);
+
+  /* ensure scalar type is valid */
+  switch (type) {
+    case zfp_type_int32:
+    case zfp_type_int64:
+    case zfp_type_float:
+    case zfp_type_double:
+      break;
+    default:
+      return ZFP_META_NULL;
+  }
+
+  /* 48 bits for field dimensions */
+  switch (dims) {
     case 1:
       if ((uint64)(field->nx - 1) >> 48)
         return ZFP_META_NULL;
@@ -353,11 +379,16 @@ zfp_field_metadata(const zfp_field* field)
       meta <<= 12; meta += field->ny - 1;
       meta <<= 12; meta += field->nx - 1;
       break;
+    default:
+      return ZFP_META_NULL;
   }
+
   /* 2 bits for dimensionality (1D, 2D, 3D, 4D) */
-  meta <<= 2; meta += zfp_field_dimensionality(field) - 1;
+  meta <<= 2; meta += dims - 1;
+
   /* 2 bits for scalar type */
-  meta <<= 2; meta += field->type - 1;
+  meta <<= 2; meta += type - 1;
+
   return meta;
 }
 
@@ -457,40 +488,70 @@ zfp_field_set_stride_4d(zfp_field* field, ptrdiff_t sx, ptrdiff_t sy, ptrdiff_t 
 zfp_bool
 zfp_field_set_metadata(zfp_field* field, uint64 meta)
 {
-  uint64 dims;
-  /* ensure value is in range */
-  if (meta >> ZFP_META_BITS)
-    return zfp_false;
-  field->type = (zfp_type)((meta & 0x3u) + 1); meta >>= 2;
-  dims = (meta & 0x3u) + 1; meta >>= 2;
+  zfp_type type;
+  uint dims;
+  size_t nx = 0;
+  size_t ny = 0;
+  size_t nz = 0;
+  size_t nw = 0;
+
+  /* set scalar type and dimensionality */
+  type = (zfp_type)((meta & 0x3u) + 1); meta >>= 2;
+  dims = (uint)((meta & 0x3u) + 1); meta >>= 2;
+
+  /* set field dimensions while ensuring they fit in size_t */
   switch (dims) {
     case 1:
-      /* currently dimensions are limited to 2^32 - 1 */
-      field->nx = (size_t)(meta & UINT64C(0x0000ffffffff)) + 1; meta >>= 48;
-      field->ny = 0;
-      field->nz = 0;
-      field->nw = 0;
+      if (!set_size(&nx, (meta & UINT64C(0xffffffffffff)) + 1))
+        return zfp_false;
+      meta >>= 48;
       break;
     case 2:
-      field->nx = (size_t)(meta & UINT64C(0xffffff)) + 1; meta >>= 24;
-      field->ny = (size_t)(meta & UINT64C(0xffffff)) + 1; meta >>= 24;
-      field->nz = 0;
-      field->nw = 0;
+      if (!set_size(&nx, (meta & UINT64C(0xffffff)) + 1))
+        return zfp_false;
+      meta >>= 24;
+      if (!set_size(&ny, (meta & UINT64C(0xffffff)) + 1))
+        return zfp_false;
+      meta >>= 24;
       break;
     case 3:
-      field->nx = (size_t)(meta & UINT64C(0xffff)) + 1; meta >>= 16;
-      field->ny = (size_t)(meta & UINT64C(0xffff)) + 1; meta >>= 16;
-      field->nz = (size_t)(meta & UINT64C(0xffff)) + 1; meta >>= 16;
-      field->nw = 0;
+      if (!set_size(&nx, (meta & UINT64C(0xffff)) + 1))
+        return zfp_false;
+      meta >>= 16;
+      if (!set_size(&ny, (meta & UINT64C(0xffff)) + 1))
+        return zfp_false;
+      meta >>= 16;
+      if (!set_size(&nz, (meta & UINT64C(0xffff)) + 1))
+        return zfp_false;
+      meta >>= 16;
       break;
     case 4:
-      field->nx = (size_t)(meta & UINT64C(0xfff)) + 1; meta >>= 12;
-      field->ny = (size_t)(meta & UINT64C(0xfff)) + 1; meta >>= 12;
-      field->nz = (size_t)(meta & UINT64C(0xfff)) + 1; meta >>= 12;
-      field->nw = (size_t)(meta & UINT64C(0xfff)) + 1; meta >>= 12;
+      if (!set_size(&nx, (meta & UINT64C(0xfff)) + 1))
+        return zfp_false;
+      meta >>= 12;
+      if (!set_size(&ny, (meta & UINT64C(0xfff)) + 1))
+        return zfp_false;
+      meta >>= 12;
+      if (!set_size(&nz, (meta & UINT64C(0xfff)) + 1))
+        return zfp_false;
+      meta >>= 12;
+      if (!set_size(&nw, (meta & UINT64C(0xfff)) + 1))
+        return zfp_false;
+      meta >>= 12;
       break;
   }
+
+  /* ensure there are no more value bits */
+  if (meta)
+    return zfp_false;
+
+  field->type = type;
+  field->nx = nx;
+  field->ny = ny;
+  field->nz = nz;
+  field->nw = nw;
   field->sx = field->sy = field->sz = field->sw = 0;
+
   return zfp_true;
 }
 
@@ -1245,11 +1306,13 @@ zfp_write_header(zfp_stream* zfp, const zfp_field* field, uint mask)
     stream_write_bits(zfp->stream, zfp_codec_version, 8);
     bits += ZFP_MAGIC_BITS;
   }
+
   /* 52-bit field metadata */
   if (mask & ZFP_HEADER_META) {
     stream_write_bits(zfp->stream, meta, ZFP_META_BITS);
     bits += ZFP_META_BITS;
   }
+
   /* 12- or 64-bit compression parameters */
   if (mask & ZFP_HEADER_MODE) {
     uint64 mode = zfp_stream_mode(zfp);
@@ -1265,6 +1328,8 @@ size_t
 zfp_read_header(zfp_stream* zfp, zfp_field* field, uint mask)
 {
   size_t bits = 0;
+
+  /* 32-bit magic */
   if (mask & ZFP_HEADER_MAGIC) {
     if (stream_read_bits(zfp->stream, 8) != 'z' ||
         stream_read_bits(zfp->stream, 8) != 'f' ||
@@ -1273,12 +1338,16 @@ zfp_read_header(zfp_stream* zfp, zfp_field* field, uint mask)
       return 0;
     bits += ZFP_MAGIC_BITS;
   }
+
+  /* 52-bit field metadata */
   if (mask & ZFP_HEADER_META) {
     uint64 meta = stream_read_bits(zfp->stream, ZFP_META_BITS);
     if (!zfp_field_set_metadata(field, meta))
       return 0;
     bits += ZFP_META_BITS;
   }
+
+  /* 12- or 64-bit compression parameters */
   if (mask & ZFP_HEADER_MODE) {
     uint64 mode = stream_read_bits(zfp->stream, ZFP_MODE_SHORT_BITS);
     bits += ZFP_MODE_SHORT_BITS;
@@ -1290,5 +1359,6 @@ zfp_read_header(zfp_stream* zfp, zfp_field* field, uint mask)
     if (zfp_stream_set_mode(zfp, mode) == zfp_mode_null)
       return 0;
   }
+
   return bits;
 }
