@@ -4,7 +4,7 @@ _t2(compress, Scalar, 1)(zfp_stream* stream, const zfp_field* field)
 {
   const Scalar* data = field->data;
   size_t nx = field->nx;
-  size_t mx = nx & ~3u;
+  size_t mx = nx & ~(size_t)3;
   size_t x;
 
   /* compress array one block of 4 values at a time */

@@ -4,7 +4,7 @@ _t2(decompress, Scalar, 1)(zfp_stream* stream, zfp_field* field)
 {
   Scalar* data = field->data;
   size_t nx = field->nx;
-  size_t mx = nx & ~3u;
+  size_t mx = nx & ~(size_t)3;
   size_t x;
 
   /* decompress array one block of 4 values at a time */

@@ -10,7 +10,8 @@ Change Log
 - A new code example, `chunk`, shows how to perform (de)compression in chunks.
 - A new utility function `zfp_block_maximum_size()` returns maximum block size
   for given scalar type, dimensionality, and compression mode.
-- `zfpy.__version__` for straightfoward access to the zfp version string in Python.
+- `zfpy.__version__` for straightfoward access to the zfp version string in
+  Python.
 - CMake installs now include a pkg-config file, `zfp.pc`.
 
 ### Changed
@@ -21,8 +22,9 @@ Change Log
 
 - #241: Signed left shifts, integer overflow invoke undefined behavior.
 - #270: Overflow of maximum stream size when `size_t` is 32 bits.
-- #317: `zfpy.compress_numpy` read out of bounds for broadcast or unaligned arrays;
-  it now raises `ValueError` for them.
+- #317: `zfpy.compress_numpy()` does not support broadcast or unaligned arrays,
+  which now cause `ValueError` to be raised.
+- #320: Incorrect handling of 1D contiguous arrays with 2^32 or more values.
 
 ---
 
