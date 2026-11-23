@@ -10,6 +10,10 @@ add_executable(testZfpPromote testZfpPromote.c)
 target_link_libraries(testZfpPromote cmocka zfp)
 add_test(NAME testZfpPromote COMMAND testZfpPromote)
 
+add_executable(testZfpNegative testZfpNegative.c)
+target_link_libraries(testZfpNegative cmocka zfp)
+add_test(NAME testZfpNegative COMMAND testZfpNegative)
+
 add_executable(testZfpField1f testZfpField1f.c)
 target_link_libraries(testZfpField1f cmocka zfp)
 add_test(NAME testZfpField1f COMMAND testZfpField1f)

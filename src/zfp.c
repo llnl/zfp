@@ -1203,6 +1203,11 @@ zfp_compress(zfp_stream* zfp, const zfp_field* field)
   uint type = field->type;
   void (*compress)(zfp_stream*, const zfp_field*);
 
+  /* ensure valid data pointer */
+  if (!field->data)
+    return 0;
+
+  /* ensure valid scalar type */
   switch (type) {
     case zfp_type_int32:
     case zfp_type_int64:
@@ -1212,6 +1217,10 @@ zfp_compress(zfp_stream* zfp, const zfp_field* field)
     default:
       return 0;
   }
+
+  /* ensure valid dimensionality */
+  if (!(1u <= dims && dims <= 4u))
+    return 0;
 
   /* return 0 if compression mode is not supported */
   compress = ftable[exec][strided][dims - 1][type - zfp_type_int32];
@@ -1263,6 +1272,11 @@ zfp_decompress(zfp_stream* zfp, zfp_field* field)
   uint type = field->type;
   void (*decompress)(zfp_stream*, zfp_field*);
 
+  /* ensure valid data pointer */
+  if (!field->data)
+    return 0;
+
+  /* ensure valid scalar type */
   switch (type) {
     case zfp_type_int32:
     case zfp_type_int64:
@@ -1272,6 +1286,10 @@ zfp_decompress(zfp_stream* zfp, zfp_field* field)
     default:
       return 0;
   }
+
+  /* ensure valid dimensionality */
+  if (!(1u <= dims && dims <= 4u))
+    return 0;
 
   /* return 0 if decompression mode is not supported */
   decompress = ftable[exec][strided][dims - 1][type - zfp_type_int32];

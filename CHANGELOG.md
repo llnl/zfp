@@ -26,6 +26,7 @@ Change Log
   which now cause `ValueError` to be raised.
 - #320: Incorrect handling of 1D contiguous arrays with 2^32 or more values.
 - #321: Header limits 1D arrays to 2^32 elements when 2^48 are supported.
+- #322: Incorrect handling of empty fields with all-zero dimensions.
 
 ---
 
