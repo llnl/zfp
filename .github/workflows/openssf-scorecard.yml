@@ -25,6 +25,9 @@ jobs:
       issues: read
       pull-requests: read
       checks: read
+    outputs:
+      results-published: ${{ steps.run-analysis.outputs.results_published }}
+      publication-status: ${{ steps.run-analysis.outputs.publication_status }}
     steps:
       - name: "Checkout code"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,6 +35,7 @@ jobs:
           persist-credentials: false
 
       - name: "Run analysis"
+        id: run-analysis
         uses: ossf/scorecard-action@23f22cd43608bae7a1f1fa2603d7314dee9538a5 # v2.6.0
         with:
           results_file: results.sarif
@@ -42,3 +46,15 @@ jobs:
           # extract the results instead of relying on our own infrastructure to run scans.
           # And it's free for you!
           publish_results: true
+
+  report:
+    needs: analysis
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report publication status
+        env:
+          RESULTS_PUBLISHED: ${{ needs.analysis.outputs.results-published }}
+          PUBLICATION_STATUS: ${{ needs.analysis.outputs.publication-status }}
+        run: |
+          echo "Published: $RESULTS_PUBLISHED (status: $PUBLICATION_STATUS)"
